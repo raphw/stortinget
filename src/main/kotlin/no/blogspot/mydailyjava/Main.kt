@@ -1,7 +1,6 @@
 package no.blogspot.mydailyjava
 
 import java.net.URL
-import java.util.*
 import javax.xml.bind.JAXBContext
 import javax.xml.bind.annotation.*
 import javax.xml.stream.XMLInputFactory
@@ -37,7 +36,7 @@ data class Topic(@XmlElement(namespace = STORTINGET_URI, name = "id") var id: St
                  @XmlElement(namespace = STORTINGET_URI, name = "er_hovedemne") var main: Boolean? = null,
                  @XmlElement(namespace = STORTINGET_URI, name = "hovedemne_id") var mainId: String? = null,
                  @XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
-                 @XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") @XmlElement(namespace = STORTINGET_URI, name="emne") var sub: List<Topic>? = null)
+                 @XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") @XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null)
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "representant")
 @XmlAccessorType(XmlAccessType.FIELD)
