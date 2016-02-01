@@ -121,7 +121,6 @@ class ThrottledReader<T>(val tag: String, val endpoint: String, type: Class<out 
 }
 
 fun main(args: Array<String>) {
-    /*
     ThrottledReader("komite", "allekomiteer", Committee::class.java).read(Consumer.Printing)
     ThrottledReader("parti", "allepartier", Party::class.java).read(Consumer.Printing)
     ThrottledReader("fylke", "fylker", Area::class.java).read(Consumer.Printing)
@@ -130,15 +129,12 @@ fun main(args: Array<String>) {
             ThrottledReader("representant", "representanter?stortingsperiodeid=${element.id}", Representative::class.java, Area::class.java, Party::class.java).read(Consumer.Printing)
         }
     })
-    */
     ThrottledReader("emne", "emner", Topic::class.java).read(Consumer.Printing)
-    //ThrottledReader("sesjon", "sesjoner", Session::class.java).read(Consumer.Printing, object : Consumer<Session> {
-    //    override fun onElement(element: Session) {
-    /*
-    ThrottledReader("komite", "komiteer?sesjonid=${element.id}", Committee::class.java).read(Consumer.Printing)
-    ThrottledReader("parti", "partier?sesjonid=${element.id}", Party::class.java).read(Consumer.Printing)
-    ThrottledReader("sporsmal", "sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
-     */
-    //    }
-    //})
+    ThrottledReader("sesjon", "sesjoner", Session::class.java).read(Consumer.Printing, object : Consumer<Session> {
+        override fun onElement(element: Session) {
+            ThrottledReader("komite", "komiteer?sesjonid=${element.id}", Committee::class.java).read(Consumer.Printing)
+            ThrottledReader("parti", "partier?sesjonid=${element.id}", Party::class.java).read(Consumer.Printing)
+            ThrottledReader("sporsmal", "sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
+        }
+    })
 }
