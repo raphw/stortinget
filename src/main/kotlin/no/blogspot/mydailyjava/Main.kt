@@ -92,9 +92,11 @@ interface Consumer<in T> {
     }
 }
 
-class ThrottledReader<T>(val tag: String, val endpoint: String, type: Class<out T>, vararg types: Class<*>) {
+class ThrottledReader<T>(val endpoint: String, type: Class<out T>) {
 
-    private val unmarshaller = JAXBContext.newInstance(type, *types).createUnmarshaller();
+    private val unmarshaller = JAXBContext.newInstance(type).createUnmarshaller();
+
+    private val tag = type.getAnnotation(XmlRootElement::class.java).name
 
     fun read(vararg consumers: Consumer<T>) {
         val stream = URL(EXPORT_URI + endpoint).openStream();
@@ -121,20 +123,20 @@ class ThrottledReader<T>(val tag: String, val endpoint: String, type: Class<out 
 }
 
 fun main(args: Array<String>) {
-    ThrottledReader("komite", "allekomiteer", Committee::class.java).read(Consumer.Printing)
-    ThrottledReader("parti", "allepartier", Party::class.java).read(Consumer.Printing)
-    ThrottledReader("fylke", "fylker", Area::class.java).read(Consumer.Printing)
-    ThrottledReader("stortingsperiode", "stortingsperioder", Period::class.java).read(Consumer.Printing, object : Consumer<Period> {
+    ThrottledReader("allekomiteer", Committee::class.java).read(Consumer.Printing)
+    ThrottledReader("allepartier", Party::class.java).read(Consumer.Printing)
+    ThrottledReader("fylker", Area::class.java).read(Consumer.Printing)
+    ThrottledReader("stortingsperioder", Period::class.java).read(Consumer.Printing, object : Consumer<Period> {
         override fun onElement(element: Period) {
-            ThrottledReader("representant", "representanter?stortingsperiodeid=${element.id}", Representative::class.java, Area::class.java, Party::class.java).read(Consumer.Printing)
+            ThrottledReader("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(Consumer.Printing)
         }
     })
-    ThrottledReader("emne", "emner", Topic::class.java).read(Consumer.Printing)
-    ThrottledReader("sesjon", "sesjoner", Session::class.java).read(Consumer.Printing, object : Consumer<Session> {
+    ThrottledReader("emner", Topic::class.java).read(Consumer.Printing)
+    ThrottledReader("sesjoner", Session::class.java).read(Consumer.Printing, object : Consumer<Session> {
         override fun onElement(element: Session) {
-            ThrottledReader("komite", "komiteer?sesjonid=${element.id}", Committee::class.java).read(Consumer.Printing)
-            ThrottledReader("parti", "partier?sesjonid=${element.id}", Party::class.java).read(Consumer.Printing)
-            ThrottledReader("sporsmal", "sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
+            ThrottledReader("komiteer?sesjonid=${element.id}", Committee::class.java).read(Consumer.Printing)
+            ThrottledReader("partier?sesjonid=${element.id}", Party::class.java).read(Consumer.Printing)
+            ThrottledReader("sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
         }
     })
 }
