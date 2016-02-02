@@ -325,22 +325,22 @@ interface Consumer<in T> {
 }
 
 interface Dispatcher {
-    fun <T> apply(reader: ThrottledReader<T>, consumers: Array<out Consumer<T>>)
+    fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>)
 
     object Synchronous : Dispatcher {
-        override fun <T> apply(reader: ThrottledReader<T>, consumers: Array<out Consumer<T>>) {
-            reader.doRead(consumers)
+        override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
+            parser.doRead(consumers)
         }
     }
 
     class Asynchronous(val executor: Executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher {
-        override fun <T> apply(reader: ThrottledReader<T>, consumers: Array<out Consumer<T>>) {
-            executor.execute(Job(reader, consumers))
+        override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
+            executor.execute(Job(parser, consumers))
         }
 
-        class Job<T>(val reader: ThrottledReader<T>, val consumers: Array<out Consumer<T>>) : Runnable {
+        class Job<T>(val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
             override fun run() {
-                reader.doRead(consumers)
+                parser.doRead(consumers)
             }
         }
     }
@@ -348,7 +348,7 @@ interface Dispatcher {
 
 val dispatcher = Dispatcher.Asynchronous()
 
-class ThrottledReader<T>(val endpoint: String, type: Class<out T>) {
+class ThrottledXmlParser<T>(val endpoint: String, type: Class<out T>) {
     private val unmarshaller = JAXBContext.newInstance(type).createUnmarshaller()
     private val tag = type.getAnnotation(XmlRootElement::class.java).name
 
@@ -385,43 +385,43 @@ class ThrottledReader<T>(val endpoint: String, type: Class<out T>) {
 }
 
 fun main(args: Array<String>) {
-    ThrottledReader("stortingsperioder", Period::class.java).read(Consumer.Printing, object : Consumer<Period> {
+    ThrottledXmlParser("stortingsperioder", Period::class.java).read(Consumer.Printing, object : Consumer<Period> {
         override fun onElement(element: Period) {
-            ThrottledReader("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(Consumer.Printing)
+            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(Consumer.Printing)
         }
     })
-    ThrottledReader("allekomiteer", Committee::class.java).read(Consumer.Printing)
-    ThrottledReader("allepartier", Party::class.java).read(Consumer.Printing)
-    ThrottledReader("fylker", Area::class.java).read(Consumer.Printing)
-    ThrottledReader("emner", Topic::class.java).read(Consumer.Printing)
-    ThrottledReader("saksganger", ItemProcedure::class.java).read(Consumer.Printing)
-    ThrottledReader("sesjoner", Session::class.java).read(Consumer.Printing, object : Consumer<Session> {
+    ThrottledXmlParser("allekomiteer", Committee::class.java).read(Consumer.Printing)
+    ThrottledXmlParser("allepartier", Party::class.java).read(Consumer.Printing)
+    ThrottledXmlParser("fylker", Area::class.java).read(Consumer.Printing)
+    ThrottledXmlParser("emner", Topic::class.java).read(Consumer.Printing)
+    ThrottledXmlParser("saksganger", ItemProcedure::class.java).read(Consumer.Printing)
+    ThrottledXmlParser("sesjoner", Session::class.java).read(Consumer.Printing, object : Consumer<Session> {
         override fun onElement(element: Session) {
-            ThrottledReader("komiteer?sesjonid=${element.id}", Committee::class.java).read(Consumer.Printing)
-            ThrottledReader("partier?sesjonid=${element.id}", Party::class.java).read(Consumer.Printing)
-            ThrottledReader("sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
-            ThrottledReader("interpellasjoner?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
-            ThrottledReader("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
-            ThrottledReader("horinger?sesjonid=${element.id}", Hearing::class.java).read(Consumer.Printing, object : Consumer<Hearing> {
+            ThrottledXmlParser("komiteer?sesjonid=${element.id}", Committee::class.java).read(Consumer.Printing)
+            ThrottledXmlParser("partier?sesjonid=${element.id}", Party::class.java).read(Consumer.Printing)
+            ThrottledXmlParser("sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
+            ThrottledXmlParser("interpellasjoner?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
+            ThrottledXmlParser("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(Consumer.Printing)
+            ThrottledXmlParser("horinger?sesjonid=${element.id}", Hearing::class.java).read(Consumer.Printing, object : Consumer<Hearing> {
                 override fun onElement(element: Hearing) {
-                    ThrottledReader("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(Consumer.Printing)
+                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(Consumer.Printing)
                 }
             })
-            ThrottledReader("moter?sesjonid=${element.id}", Meeting::class.java).read(Consumer.Printing, object : Consumer<Meeting> {
+            ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(Consumer.Printing, object : Consumer<Meeting> {
                 override fun onElement(element: Meeting) {
                     if (element.id != "-1") {
-                        ThrottledReader("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(Consumer.Printing)
+                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(Consumer.Printing)
                     }
                 }
             })
-            ThrottledReader("saker?sesjonid=${element.id}", ItemSummary::class.java).read(Consumer.Printing, object : Consumer<ItemSummary> {
+            ThrottledXmlParser("saker?sesjonid=${element.id}", ItemSummary::class.java).read(Consumer.Printing, object : Consumer<ItemSummary> {
                 override fun onElement(element: ItemSummary) {
-                    ThrottledReader("sak?sakid=${element.id}", Item::class.java).read(Consumer.Printing)
-                    ThrottledReader("voteringer?sakid=${element.id}", Vote::class.java).read(Consumer.Printing, object : Consumer<Vote> {
+                    ThrottledXmlParser("sak?sakid=${element.id}", Item::class.java).read(Consumer.Printing)
+                    ThrottledXmlParser("voteringer?sakid=${element.id}", Vote::class.java).read(Consumer.Printing, object : Consumer<Vote> {
                         override fun onElement(element: Vote) {
-                            ThrottledReader("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(Consumer.Printing)
-                            ThrottledReader("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(Consumer.Printing)
-                            ThrottledReader("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(Consumer.Printing)
+                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(Consumer.Printing)
+                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(Consumer.Printing)
+                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(Consumer.Printing)
                         }
                     })
                 }
