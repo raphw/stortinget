@@ -315,7 +315,6 @@ data class HearingProgramElement(
 )
 
 interface Consumer<in T> {
-
     fun onElement(element: T)
 
     object Printing : Consumer<Any> {
@@ -326,23 +325,22 @@ interface Consumer<in T> {
 }
 
 interface Dispatcher {
-
-    fun <T> apply(reader: ThrottledReader<T>, vararg consumers: Consumer<T>)
+    fun <T> apply(reader: ThrottledReader<T>, consumers: Array<out Consumer<T>>)
 
     object Synchronous : Dispatcher {
-        override fun <T> apply(reader: ThrottledReader<T>, vararg consumers: Consumer<T>) {
-            reader.doRead(*consumers)
+        override fun <T> apply(reader: ThrottledReader<T>, consumers: Array<out Consumer<T>>) {
+            reader.doRead(consumers)
         }
     }
 
     class Asynchronous(val executor: Executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher {
-        override fun <T> apply(reader: ThrottledReader<T>, vararg consumers: Consumer<T>) {
-            executor.execute(Job(reader, *consumers))
+        override fun <T> apply(reader: ThrottledReader<T>, consumers: Array<out Consumer<T>>) {
+            executor.execute(Job(reader, consumers))
         }
 
-        class Job<T>(val reader: ThrottledReader<T>, vararg val consumers: Consumer<T>) : Runnable {
+        class Job<T>(val reader: ThrottledReader<T>, val consumers: Array<out Consumer<T>>) : Runnable {
             override fun run() {
-                reader.doRead(*consumers)
+                reader.doRead(consumers)
             }
         }
     }
@@ -351,15 +349,14 @@ interface Dispatcher {
 val dispatcher = Dispatcher.Asynchronous()
 
 class ThrottledReader<T>(val endpoint: String, type: Class<out T>) {
-
     private val unmarshaller = JAXBContext.newInstance(type).createUnmarshaller()
     private val tag = type.getAnnotation(XmlRootElement::class.java).name
 
     fun read(vararg consumers: Consumer<T>) {
-        dispatcher.apply(this, *consumers)
+        dispatcher.apply(this, consumers)
     }
 
-    fun doRead(vararg consumers: Consumer<T>) {
+    fun doRead(consumers: Array<out Consumer<T>>) {
         val stream = URL(EXPORT_URI + endpoint).openStream()
         try {
             val reader = XMLInputFactory.newFactory().createXMLEventReader(stream)
