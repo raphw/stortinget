@@ -16,12 +16,18 @@ import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.events.StartElement
 import kotlin.reflect.KProperty
 import kotlin.reflect.declaredMemberProperties
+import kotlin.reflect.jvm.javaField
 
 const val STORTINGET_URI = "http://data.stortinget.no"
 const val EXPORT_URI = "https://data.stortinget.no/eksport/"
 
 interface Node {
     var id: String?
+}
+
+interface Skip {
+    fun value(): Any?
+    fun property(): KProperty<*>
 }
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "komite")
@@ -174,15 +180,23 @@ data class Publication(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "eksport_id") var exportId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "lenke_tekst") var linkText: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "lenke_url") var linkUrl: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "lenke_url") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "undertype") var subType: String? = null
-)
+) : Node
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class ItemOrigin(
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "forslagstiller_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: List<Representative>? = null
-)
+) : Skip {
+    override fun value(): Any? {
+        return spokesmen
+    }
+
+    override fun property(): KProperty<*> {
+        return ItemOrigin::spokesmen
+    }
+}
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "saksgang")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -313,8 +327,16 @@ data class HearingItemInfo(
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingTimeInfo(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "tidspunkt") var reference: String? = null
-)
+        @field:XmlElement(namespace = STORTINGET_URI, name = "tidspunkt") var time: String? = null
+) : Skip {
+    override fun value(): Any? {
+        return time
+    }
+
+    override fun property(): KProperty<*> {
+        return HearingTimeInfo::time
+    }
+}
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "horing")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -334,7 +356,7 @@ data class HearingProgram(
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingProgramElement(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "rekkefolge_nummer") var orderNumber: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "rekkefolge_nummer") var order: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tekst") var text: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tidsangivelse") var timeInfo: String? = null
 )
@@ -344,7 +366,8 @@ interface Consumer<in T : Node> {
 
     class IdSetting<T : Node>(val owner: Node, val postfix: KProperty<*>) : Consumer<T> {
         override fun onElement(element: T) {
-            element.id = owner.id + "-" + postfix.getter.call(element)
+            var current: Node = element
+            current.id = owner.id + "-" + postfix.getter.call(current)
         }
     }
 
@@ -371,12 +394,17 @@ interface Consumer<in T : Node> {
                 val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" identifier: {id}) SET n = {properties}")
                 val properties = HashMap<String, Any?>()
                 element.javaClass.kotlin.declaredMemberProperties.filter { it.name == "id" }.forEach {
-                    val value = it.get(element)
+                    var value = it.get(element)
+                    var property: KProperty<*> = it
+                    while (value is Skip) {
+                        property = value.property()
+                        value = value.value()
+                    }
                     when (value) {
                         is Node -> {
-                            query.append("MERGE (n)-->(:").append(it.returnType.javaClass.simpleName).append(" {identifier: {").append(it.name).append("})")
-                            properties.put(it.name, value.id)
-                        } else -> properties.put(it.name, value)
+                            query.append("MERGE (n)-->(:").append(property.javaField!!.type).append(" {identifier: {").append(property.name).append("})")
+                            properties.put(property.name, value.id)
+                        } else -> properties.put(property.name, value)
                     }
                 }
                 val parameters = HashMap<String, Any?>()
@@ -516,7 +544,10 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
             ThrottledXmlParser("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher, defaultConsumer)
             ThrottledXmlParser("horinger?sesjonid=${element.id}", Hearing::class.java).read(dispatcher, defaultConsumer, object : Consumer<Hearing> {
                 override fun onElement(element: Hearing) {
-                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher, Consumer.IdSetting(element, HearingProgram::date), defaultConsumer)
+                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher,
+                            Consumer.IdSetting(element, HearingProgram::date),
+                            // TODO: Consumer.IdSetting(element, HearingProgramElement::order, HearingProgram::time),
+                            defaultConsumer)
                 }
             })
             ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher, defaultConsumer, object : Consumer<Meeting> {
