@@ -19,6 +19,10 @@ import kotlin.reflect.declaredMemberProperties
 const val STORTINGET_URI = "http://data.stortinget.no"
 const val EXPORT_URI = "https://data.stortinget.no/eksport/"
 
+interface Node {
+    val id: String?
+}
+
 @XmlRootElement(namespace = STORTINGET_URI, name = "komite")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Committee(
@@ -354,11 +358,13 @@ interface Consumer<in T> {
         override fun onElement(element: Any) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("MERGE (main:").append(element.javaClass.simpleName).append(" {props})")
+                val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" identifier: {id}) ON CREATE SET n = {props} ON MATCH SET n = {props}")
                 val properties = HashMap<String, Any?>()
-                element.javaClass.kotlin.declaredMemberProperties.forEach {
+                element.javaClass.kotlin.declaredMemberProperties.filter { it.name == "id" }.forEach {
                     properties.put(it.name, it.get(element))
                 }
+                val parameters = HashMap<String, Any>()
+                properties.put("id", "<TODO>") // TODO
                 database.execute(query.toString(), Collections.singletonMap("props", properties) as Map<String, Any>)
                 transaction.success()
             } catch (exception: Exception) {
