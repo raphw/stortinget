@@ -415,6 +415,7 @@ interface Dispatcher {
 
     class Asynchronous(val startTime: Date, shutDown: Runnable,
                        val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
+
         val semaphore = ShutdownMonitor(this, shutDown)
 
         override fun <T : Node> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
