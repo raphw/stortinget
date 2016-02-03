@@ -357,7 +357,7 @@ interface Consumer<in T> {
         override fun onElement(element: Any) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("CREATE (main:").append(element.javaClass.simpleName).append("{props}")
+                val query = StringBuilder("CREATE (main:").append(element.javaClass.simpleName).append(" {props})")
                 val properties = HashMap<String, Any?>()
                 element.javaClass.kotlin.declaredMemberProperties.forEach {
                     properties.put(it.name, it.get(element))
@@ -383,7 +383,8 @@ interface Dispatcher {
 
     fun endOfScript(startTime: Date) {
         val endTime = Date()
-        LoggerFactory.getLogger(Dispatcher::class.java).info("Finished parsing after ${SimpleDateFormat("HH:mm:ss").format(endTime.time - startTime.time)}: ${SimpleDateFormat("HH:mm").format(endTime)}")
+        val difference = endTime.time - startTime.time
+        LoggerFactory.getLogger(Dispatcher::class.java).info("Finished parsing after ${difference / (1000 * 60)}:${difference / 1000}: ${SimpleDateFormat("HH:mm").format(endTime)}")
     }
 
     object Synchronous : Dispatcher {
@@ -539,6 +540,7 @@ fun main(args: Array<String>) {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
-    readAll(dispatcher, defaultConsumer)
+//    readAll(dispatcher, defaultConsumer)
+    ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
     dispatcher.endOfScript(startTime)
 }
