@@ -605,8 +605,8 @@ fun main(args: Array<String>) {
         val targetPath = File(args[0])
         if (targetPath.listFiles().isNotEmpty()) {
             throw IllegalArgumentException("Not empty: $targetPath")
-        } else if (!targetPath.isDirectory || !targetPath.canRead() || !targetPath.canWrite()) {
-            throw IllegalArgumentException("Cannot read/write or not a folder: $targetPath")
+        } else if (!targetPath.isDirectory || !targetPath.canWrite()) {
+            throw IllegalArgumentException("Cannot rite to folder or not a folder at all: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
         dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
