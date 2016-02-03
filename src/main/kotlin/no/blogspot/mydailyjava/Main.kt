@@ -6,14 +6,15 @@ import java.io.File
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import javax.xml.bind.JAXBContext
 import javax.xml.bind.JAXBException
 import javax.xml.bind.annotation.*
 import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.events.StartElement
+import kotlin.reflect.KProperty
 
 const val STORTINGET_URI = "http://data.stortinget.no"
 const val EXPORT_URI = "https://data.stortinget.no/eksport/"
@@ -166,12 +167,11 @@ data class Item(
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Publication(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "eksport_id") var exportId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "lenke_tekst") var linkText: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "lenke_url") var linkUrl: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "undertype ") var subType: String? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "undertype") var subType: String? = null
 )
 
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -201,7 +201,7 @@ data class ItemProcedureStep(
 data class Vote(
         @field:XmlElement(namespace = STORTINGET_URI, name = "alternativ_votering_id") var alternativeVoteId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "antall_for") var votesFor: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "antall_ikke_tilstedet") var absent: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "antall_ikke_tilstede") var absent: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "antall_mot") var votesAgainst: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "behandlingsrekkefoelge") var processOrder: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsorden_sak_nummer") var itemId: String? = null,
@@ -264,7 +264,7 @@ data class Meeting(
         @field:XmlElement(namespace = STORTINGET_URI, name = "mote_rekkefolge") var order: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "mote_ting") var location: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "referat_id") var protocolId: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "tillegsdagsorden") var extra: String? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "tilleggsdagsorden") var extra: String? = null
 )
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "dagsordensak")
@@ -339,10 +339,15 @@ interface Consumer<in T> {
 
         override fun onElement(element: Any) {
             logger.info(element.toString())
+            element.javaClass.kotlin.members.filter { it is KProperty }.map { it as KProperty<*> }.forEach {
+                if (it.getter.call(element) == null) {
+                    throw IllegalArgumentException("Value not set: $it")
+                }
+            }
         }
     }
 
-    class GraphWriting(targetPath: File) : Consumer<Any> {
+    class GraphWriting(targetPath: File) : Consumer<Any>, Runnable {
 
         val database = GraphDatabaseFactory().newEmbeddedDatabase(targetPath)
 
@@ -358,37 +363,66 @@ interface Consumer<in T> {
                 transaction.close()
             }
         }
+
+        override fun run() {
+            database.shutdown()
+        }
     }
 }
 
 interface Dispatcher {
     fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>)
 
-    fun shutDown()
+    fun endOfScript()
 
     object Synchronous : Dispatcher {
         override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
             parser.doRead(consumers)
         }
 
-        override fun shutDown() {
+        override fun endOfScript() {
             /* do nothing */
         }
     }
 
-    class Asynchronous(val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher {
+    class Asynchronous(shutDown: Runnable, val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
+        val semaphore = ShutdownMonitor(this, shutDown)
+
         override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
-            executor.execute(Job(parser, consumers))
+            semaphore.increment()
+            executor.execute(Job(semaphore, parser, consumers))
         }
 
-        override fun shutDown() {
-            // executor.shutdown()
+        override fun endOfScript() {
+            semaphore.decrement()
         }
 
-        class Job<T>(val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
+        override fun run() {
+            executor.shutdown()
+        }
+
+        class Job<T>(val semaphore: ShutdownMonitor, val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
             override fun run() {
-                parser.doRead(consumers)
+                try {
+                    parser.doRead(consumers)
+                } finally {
+                    semaphore.decrement()
+                }
             }
+        }
+    }
+}
+
+class ShutdownMonitor(vararg val listeners: Runnable) {
+    val counter = AtomicInteger(1)
+
+    fun increment(): Unit {
+        counter.incrementAndGet()
+    }
+
+    fun decrement(): Unit {
+        if (counter.decrementAndGet() == 0) {
+            listeners.forEach { it.run() }
         }
     }
 }
@@ -431,7 +465,7 @@ class ThrottledXmlParser<T>(val endpoint: String, type: Class<out T>) {
     }
 }
 
-fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
+private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
     val logger = LoggerFactory.getLogger(Dispatcher::class.java)
     val startTime = Date()
     logger.info("Begin parsing: ${SimpleDateFormat("HH:mm").format(startTime)}")
@@ -488,7 +522,6 @@ fun main(args: Array<String>) {
         dispatcher = Dispatcher.Synchronous
         defaultConsumer = Consumer.Printing
     } else if (args.size == 1) {
-        dispatcher = Dispatcher.Asynchronous()
         val targetPath = File(args[0])
         if (targetPath.listFiles().isNotEmpty()) {
             throw IllegalArgumentException("Not empty: $targetPath")
@@ -496,9 +529,10 @@ fun main(args: Array<String>) {
             throw IllegalArgumentException("Cannot read/write or not a folder: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
+        dispatcher = Dispatcher.Asynchronous(defaultConsumer)
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     readAll(dispatcher, defaultConsumer)
+    dispatcher.endOfScript()
 }
-
