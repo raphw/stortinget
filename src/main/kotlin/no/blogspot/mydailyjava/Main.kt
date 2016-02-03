@@ -15,6 +15,9 @@ import javax.xml.bind.annotation.*
 import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.events.StartElement
 import kotlin.reflect.KProperty
+import kotlin.reflect.declaredMemberProperties
+import kotlin.reflect.jvm.properties
+import kotlin.reflect.memberProperties
 
 const val STORTINGET_URI = "http://data.stortinget.no"
 const val EXPORT_URI = "https://data.stortinget.no/eksport/"
@@ -339,7 +342,7 @@ interface Consumer<in T> {
 
         override fun onElement(element: Any) {
             logger.info(element.toString())
-            element.javaClass.kotlin.members.filter { it is KProperty }.map { it as KProperty<*> }.forEach {
+            element.javaClass.kotlin.declaredMemberProperties.forEach {
                 if (it.getter.call(element) == null) {
                     throw IllegalArgumentException("Value not set: $it")
                 }
@@ -354,7 +357,12 @@ interface Consumer<in T> {
         override fun onElement(element: Any) {
             val transaction = database.beginTx()
             try {
-                database.execute("MERGE (:${element.javaClass.simpleName})")
+                val query = StringBuilder("CREATE (main:").append(element.javaClass.simpleName).append("{props}")
+                val properties = HashMap<String, Any?>()
+                element.javaClass.kotlin.declaredMemberProperties.forEach {
+                    properties.put(it.name, it.get(element))
+                }
+                database.execute(query.toString(), Collections.singletonMap("props", properties) as Map<String, Any>)
                 transaction.success()
             } catch (exception: Exception) {
                 transaction.failure()
@@ -373,19 +381,18 @@ interface Consumer<in T> {
 interface Dispatcher {
     fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>)
 
-    fun endOfScript()
+    fun endOfScript(startTime: Date) {
+        val endTime = Date()
+        LoggerFactory.getLogger(Dispatcher::class.java).info("Finished parsing after ${SimpleDateFormat("HH:mm:ss").format(endTime.time - startTime.time)}: ${SimpleDateFormat("HH:mm").format(endTime)}")
+    }
 
     object Synchronous : Dispatcher {
         override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
             parser.doRead(consumers)
         }
-
-        override fun endOfScript() {
-            /* do nothing */
-        }
     }
 
-    class Asynchronous(shutDown: Runnable, val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
+    class Asynchronous(val startTime: Date, shutDown: Runnable, val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
         val semaphore = ShutdownMonitor(this, shutDown)
 
         override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
@@ -393,12 +400,13 @@ interface Dispatcher {
             executor.execute(Job(semaphore, parser, consumers))
         }
 
-        override fun endOfScript() {
+        override fun endOfScript(startTime: Date) {
             semaphore.decrement()
         }
 
         override fun run() {
             executor.shutdown()
+            super.endOfScript(startTime)
         }
 
         class Job<T>(val semaphore: ShutdownMonitor, val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
@@ -466,9 +474,6 @@ class ThrottledXmlParser<T>(val endpoint: String, type: Class<out T>) {
 }
 
 private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
-    val logger = LoggerFactory.getLogger(Dispatcher::class.java)
-    val startTime = Date()
-    logger.info("Begin parsing: ${SimpleDateFormat("HH:mm").format(startTime)}")
     ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("allepartier", Party::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("fylker", Area::class.java).read(dispatcher, defaultConsumer)
@@ -512,12 +517,12 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
             })
         }
     })
-    logger.info("Finished parsing after ${SimpleDateFormat("HH:mm:ss").format(Date().time - startTime.time)}: ${SimpleDateFormat("HH:mm").format(Date())}")
 }
 
 fun main(args: Array<String>) {
     val dispatcher: Dispatcher
     val defaultConsumer: Consumer<Any>
+    val startTime = Date()
     if (args.isEmpty()) {
         dispatcher = Dispatcher.Synchronous
         defaultConsumer = Consumer.Printing
@@ -529,10 +534,11 @@ fun main(args: Array<String>) {
             throw IllegalArgumentException("Cannot read/write or not a folder: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
-        dispatcher = Dispatcher.Asynchronous(defaultConsumer)
+        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
+    LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm").format(startTime)}")
     readAll(dispatcher, defaultConsumer)
-    dispatcher.endOfScript()
+    dispatcher.endOfScript(startTime)
 }
