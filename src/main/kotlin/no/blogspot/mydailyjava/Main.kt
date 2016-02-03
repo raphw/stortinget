@@ -368,12 +368,16 @@ interface Consumer<in T : Node> {
         override fun onElement(element: Node) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("MERGE (n:")
-                        .append(element.javaClass.simpleName)
-                        .append(" identifier: {id}) ON CREATE SET n = {properties} ON MATCH SET n = {properties}")
+                val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" identifier: {id}) SET n = {properties}")
                 val properties = HashMap<String, Any?>()
                 element.javaClass.kotlin.declaredMemberProperties.filter { it.name == "id" }.forEach {
-                    properties.put(it.name, it.get(element))
+                    val value = it.get(element)
+                    when (value) {
+                        is Node -> {
+                            query.append("MERGE (n)-->(:").append(it.returnType.javaClass.simpleName).append(" {identifier: {").append(it.name).append("})")
+                            properties.put(it.name, value.id)
+                        } else -> properties.put(it.name, value)
+                    }
                 }
                 val parameters = HashMap<String, Any?>()
                 parameters.put("id", element.id)
