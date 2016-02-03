@@ -14,6 +14,7 @@ import javax.xml.bind.JAXBException
 import javax.xml.bind.annotation.*
 import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.events.StartElement
+import kotlin.reflect.KProperty
 import kotlin.reflect.declaredMemberProperties
 
 const val STORTINGET_URI = "http://data.stortinget.no"
@@ -231,7 +232,7 @@ data class VoteProposal(
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_betegnelse_kort") var shortName: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_levert_av_representant") var byRepresentative: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_paa_vegne_av_tekst") var byText: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_sorteringsnummer") var orderNumber: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_sorteringsnummer") var number: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_tekst") var text: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_type") var type: String? = null
 ) : Node
@@ -275,8 +276,9 @@ data class Meeting(
 @XmlRootElement(namespace = STORTINGET_URI, name = "dagsordensak")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class MeetingAgendum(
+        override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_henvisning") var protocolId: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_nummer") override var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_nummer") var number: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_tekst") var tekst: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_type") var type: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
@@ -317,7 +319,8 @@ data class HearingTimeInfo(
 @XmlRootElement(namespace = STORTINGET_URI, name = "horing")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingProgram(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "dato") override var id: String? = null,
+        override var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "dato") var date: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var time: List<HearingProgramElement>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innledning") var introduction: String? = null,
@@ -339,6 +342,12 @@ data class HearingProgramElement(
 interface Consumer<in T : Node> {
     fun onElement(element: T)
 
+    class IdSetting<T : Node>(val owner: Node, val postfix: KProperty<*>) : Consumer<T> {
+        override fun onElement(element: T) {
+            element.id = owner.id + "-" + postfix.getter.call(element)
+        }
+    }
+
     object Printing : Consumer<Node> {
         val logger = LoggerFactory.getLogger(Printing.javaClass)
 
@@ -349,13 +358,6 @@ interface Consumer<in T : Node> {
                     throw IllegalArgumentException("Value not set: $it")
                 }
             }
-        }
-    }
-
-    class IdCorrector(val parent: Node) : Consumer<Node> {
-
-        override fun onElement(element: Node) {
-            element.id = parent.id + "-" + element.id
         }
     }
 
@@ -509,13 +511,13 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
             ThrottledXmlParser("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher, defaultConsumer)
             ThrottledXmlParser("horinger?sesjonid=${element.id}", Hearing::class.java).read(dispatcher, defaultConsumer, object : Consumer<Hearing> {
                 override fun onElement(element: Hearing) {
-                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
+                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher, Consumer.IdSetting(element, HearingProgram::date), defaultConsumer)
                 }
             })
             ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher, defaultConsumer, object : Consumer<Meeting> {
                 override fun onElement(element: Meeting) {
                     if (element.id != "-1") {
-                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
+                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher, Consumer.IdSetting(element, MeetingAgendum::number), defaultConsumer)
                     }
                 }
             })
@@ -524,9 +526,9 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
                     ThrottledXmlParser("sak?sakid=${element.id}", Item::class.java).read(dispatcher, defaultConsumer)
                     ThrottledXmlParser("voteringer?sakid=${element.id}", Vote::class.java).read(dispatcher, defaultConsumer, object : Consumer<Vote> {
                         override fun onElement(element: Vote) {
-                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
-                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
-                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
+                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher, Consumer.IdSetting(element, VoteProposal::number), defaultConsumer)
+                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher, Consumer.IdSetting(element, VoteDecision::code), defaultConsumer)
+                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher, Consumer.IdSetting(element, VoteResult::reference), defaultConsumer)
                         }
                     })
                 }
@@ -555,7 +557,6 @@ fun main(args: Array<String>) {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
-    //    readAll(dispatcher, defaultConsumer)
-    ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
+    readAll(dispatcher, defaultConsumer)
     dispatcher.endOfScript(startTime)
 }
