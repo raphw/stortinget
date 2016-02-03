@@ -20,58 +20,58 @@ const val STORTINGET_URI = "http://data.stortinget.no"
 const val EXPORT_URI = "https://data.stortinget.no/eksport/"
 
 interface Node {
-    val id: String?
+    var id: String?
 }
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "komite")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Committee(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "parti")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Party(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "fylke")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Area(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "stortingsperiode")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Period(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fra") var from: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "til") var to: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "emne")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Topic(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "er_hovedemne") var main: Boolean? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "hovedemne_id") var mainId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "representant")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Representative(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "foedselsdato") var birth: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "doedsdato") var death: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fornavn") var firstName: String? = null,
@@ -79,22 +79,22 @@ data class Representative(
         @field:XmlElement(namespace = STORTINGET_URI, name = "kjoenn") var gender: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fylke") var area: Area? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "parti") var party: Party? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sesjon")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Session(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fra") var from: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "til") var to: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sporsmal")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Question(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_av") var answeredBy: Representative? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_av_minister_id") var answeredByMinisterId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_av_minister_tittel") var answeredByMinisterTitle: String? = null,
@@ -118,13 +118,13 @@ data class Question(
         @field:XmlElement(namespace = STORTINGET_URI, name = "status") var status: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sak")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class ItemSummary(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dokumentgruppe") var group: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "forslagstiller_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var suggestedBy: List<Representative>? = null,
@@ -139,13 +139,13 @@ data class ItemSummary(
         @field:XmlElement(namespace = STORTINGET_URI, name = "status") var state: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "detaljert_sak")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Item(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dokumentgruppe") var group: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "ferdigbehandlet") var done: String? = null,
@@ -165,7 +165,7 @@ data class Item(
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtakstekst") var note: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "publikasjon_referanse")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -186,19 +186,19 @@ data class ItemOrigin(
 @XmlRootElement(namespace = STORTINGET_URI, name = "saksgang")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class ItemProcedure(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksgang_steg_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "saksgang_steg") var step: List<ItemProcedureStep>? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "saksgang_steg")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class ItemProcedureStep(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "steg_nummer") var number: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "uaktuell") var current: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sak_votering")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -215,18 +215,18 @@ data class Vote(
         @field:XmlElement(namespace = STORTINGET_URI, name = "personlig_votering") var personalVote: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "president") var president: Representative? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtatt") var accepted: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "votering_id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "votering_id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "votering_metode") var voteType: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "votering_resultat_type") var voteResult: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "votering_resultat_type_tekst") var voteResultInfo: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "votering_tema") var voteTopic: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "votering_tid") var voteTime: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "voteringsforslag")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class VoteProposal(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_betegnelse") var name: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_betegnelse_kort") var shortName: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_levert_av_representant") var byRepresentative: String? = null,
@@ -234,33 +234,34 @@ data class VoteProposal(
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_sorteringsnummer") var orderNumber: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_tekst") var text: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "forslag_type") var type: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "voteringsvedtak")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class VoteDecision(
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtak_kode") var code: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtak_kommentar") var comment: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "vedtak_nummer") var number: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "vedtak_nummer") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtak_referanse") var reference: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtak_tekst") var text: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "representant_voteringsresultat")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class VoteResult(
+        override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vara_for") var substituteFor: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fast_vara_for") var steadySubstituteFor: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "votering") var vote: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var reference: Representative? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "mote")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Meeting(
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsorden_nummer") var number: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "ikke_motedag_tekst") var noMeetingText: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "kveldsmote") var eveningMeeting: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "merknad") var note: String? = null,
@@ -269,13 +270,13 @@ data class Meeting(
         @field:XmlElement(namespace = STORTINGET_URI, name = "mote_ting") var location: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "referat_id") var protocolId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tilleggsdagsorden") var extra: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "dagsordensak")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class MeetingAgendum(
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_henvisning") var protocolId: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_nummer") var number: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_nummer") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_tekst") var tekst: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsordensak_type") var type: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
@@ -285,7 +286,7 @@ data class MeetingAgendum(
         @field:XmlElement(namespace = STORTINGET_URI, name = "sak_id") var itemId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporretime_type") var questionType: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporsmal_id") var questionId: String? = null
-)
+) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "horing")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -293,20 +294,20 @@ data class Hearing(
         @field:XmlElement(namespace = STORTINGET_URI, name = "anmodningsfrist_dato_tid") var protocolId: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horing_sak_info_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horing_sak_info") var info: List<HearingItemInfo>? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingstidspunkt_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingstidspunkt") var time: List<HearingTimeInfo>? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "komite") var committee: Committee? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "publisert_dato") var publishingDate: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "status") var status: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "status_info_tekst") var statusInfoText: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null
-)
+) : Node
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingItemInfo(
         @field:XmlElement(namespace = STORTINGET_URI, name = "sak_henvisning") var reference: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "sak_id") var id: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "sak_id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sak_tittel") var title: String? = null
-)
+) : Node
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingTimeInfo(
@@ -316,7 +317,7 @@ data class HearingTimeInfo(
 @XmlRootElement(namespace = STORTINGET_URI, name = "horing")
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingProgram(
-        @field:XmlElement(namespace = STORTINGET_URI, name = "dato") var date: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "dato") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
         @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var time: List<HearingProgramElement>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innledning") var introduction: String? = null,
@@ -326,7 +327,7 @@ data class HearingProgram(
         @field:XmlElement(namespace = STORTINGET_URI, name = "tekst") var tekst: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "video_overforing") var broadcasting: String? = null
-)
+) : Node
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingProgramElement(
@@ -335,13 +336,13 @@ data class HearingProgramElement(
         @field:XmlElement(namespace = STORTINGET_URI, name = "tidsangivelse") var timeInfo: String? = null
 )
 
-interface Consumer<in T> {
+interface Consumer<in T : Node> {
     fun onElement(element: T)
 
-    object Printing : Consumer<Any> {
+    object Printing : Consumer<Node> {
         val logger = LoggerFactory.getLogger(Printing.javaClass)
 
-        override fun onElement(element: Any) {
+        override fun onElement(element: Node) {
             logger.info(element.toString())
             element.javaClass.kotlin.declaredMemberProperties.forEach {
                 if (it.getter.call(element) == null) {
@@ -351,21 +352,30 @@ interface Consumer<in T> {
         }
     }
 
-    class GraphWriting(targetPath: File) : Consumer<Any>, Runnable {
+    class IdCorrector(val parent: Node) : Consumer<Node> {
+
+        override fun onElement(element: Node) {
+            element.id = parent.id + "-" + element.id
+        }
+    }
+
+    class GraphWriting(targetPath: File) : Consumer<Node>, Runnable {
 
         val database = GraphDatabaseFactory().newEmbeddedDatabase(targetPath)
 
-        override fun onElement(element: Any) {
+        override fun onElement(element: Node) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" identifier: {id}) ON CREATE SET n = {props} ON MATCH SET n = {props}")
+                val query = StringBuilder("MERGE (n:")
+                        .append(element.javaClass.simpleName)
+                        .append(" identifier: {id}) ON CREATE SET n = {properties} ON MATCH SET n = {properties}")
                 val properties = HashMap<String, Any?>()
                 element.javaClass.kotlin.declaredMemberProperties.filter { it.name == "id" }.forEach {
                     properties.put(it.name, it.get(element))
                 }
-                val parameters = HashMap<String, Any>()
-                properties.put("id", "<TODO>") // TODO
-                database.execute(query.toString(), Collections.singletonMap("props", properties) as Map<String, Any>)
+                val parameters = HashMap<String, Any?>()
+                parameters.put("id", element.id)
+                database.execute(query.toString(), Collections.singletonMap("properties", properties) as Map<String, Any>)
                 transaction.success()
             } catch (exception: Exception) {
                 transaction.failure()
@@ -382,24 +392,26 @@ interface Consumer<in T> {
 }
 
 interface Dispatcher {
-    fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>)
+    fun <T : Node> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>)
 
     fun endOfScript(startTime: Date) {
         val endTime = Date()
         val difference = endTime.time - startTime.time
-        LoggerFactory.getLogger(Dispatcher::class.java).info("Finished parsing after ${difference / (1000 * 60)}:${difference / 1000}: ${SimpleDateFormat("HH:mm").format(endTime)}")
+        LoggerFactory.getLogger(Dispatcher::class.java)
+                .info("Finished parsing after ${difference / (1000 * 60)}:${difference / 1000}: ${SimpleDateFormat("HH:mm").format(endTime)}")
     }
 
     object Synchronous : Dispatcher {
-        override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
+        override fun <T : Node> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
             parser.doRead(consumers)
         }
     }
 
-    class Asynchronous(val startTime: Date, shutDown: Runnable, val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
+    class Asynchronous(val startTime: Date, shutDown: Runnable,
+                       val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
         val semaphore = ShutdownMonitor(this, shutDown)
 
-        override fun <T> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
+        override fun <T : Node> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
             semaphore.increment()
             executor.execute(Job(semaphore, parser, consumers))
         }
@@ -413,7 +425,7 @@ interface Dispatcher {
             super.endOfScript(startTime)
         }
 
-        class Job<T>(val semaphore: ShutdownMonitor, val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
+        class Job<T : Node>(val semaphore: ShutdownMonitor, val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
             override fun run() {
                 try {
                     parser.doRead(consumers)
@@ -439,7 +451,7 @@ class ShutdownMonitor(vararg val listeners: Runnable) {
     }
 }
 
-class ThrottledXmlParser<T>(val endpoint: String, type: Class<out T>) {
+class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
     private val logger = LoggerFactory.getLogger(ThrottledXmlParser::class.java)
     private val unmarshaller = JAXBContext.newInstance(type).createUnmarshaller()
     private val tag = type.getAnnotation(XmlRootElement::class.java).name
@@ -477,7 +489,7 @@ class ThrottledXmlParser<T>(val endpoint: String, type: Class<out T>) {
     }
 }
 
-private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
+private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
     ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("allepartier", Party::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("fylker", Area::class.java).read(dispatcher, defaultConsumer)
@@ -497,13 +509,13 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
             ThrottledXmlParser("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher, defaultConsumer)
             ThrottledXmlParser("horinger?sesjonid=${element.id}", Hearing::class.java).read(dispatcher, defaultConsumer, object : Consumer<Hearing> {
                 override fun onElement(element: Hearing) {
-                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher, defaultConsumer)
+                    ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
                 }
             })
             ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher, defaultConsumer, object : Consumer<Meeting> {
                 override fun onElement(element: Meeting) {
                     if (element.id != "-1") {
-                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher, defaultConsumer)
+                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
                     }
                 }
             })
@@ -512,9 +524,9 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
                     ThrottledXmlParser("sak?sakid=${element.id}", Item::class.java).read(dispatcher, defaultConsumer)
                     ThrottledXmlParser("voteringer?sakid=${element.id}", Vote::class.java).read(dispatcher, defaultConsumer, object : Consumer<Vote> {
                         override fun onElement(element: Vote) {
-                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher, defaultConsumer)
-                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher, defaultConsumer)
-                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher, defaultConsumer)
+                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
+                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
+                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher, Consumer.IdCorrector(element), defaultConsumer)
                         }
                     })
                 }
@@ -525,7 +537,7 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
 
 fun main(args: Array<String>) {
     val dispatcher: Dispatcher
-    val defaultConsumer: Consumer<Any>
+    val defaultConsumer: Consumer<Node>
     val startTime = Date()
     if (args.isEmpty()) {
         dispatcher = Dispatcher.Synchronous
@@ -543,7 +555,7 @@ fun main(args: Array<String>) {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
-//    readAll(dispatcher, defaultConsumer)
+    //    readAll(dispatcher, defaultConsumer)
     ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
     dispatcher.endOfScript(startTime)
 }
