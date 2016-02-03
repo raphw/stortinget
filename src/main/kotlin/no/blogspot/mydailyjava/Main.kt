@@ -406,7 +406,9 @@ interface Consumer<in T : Node> {
                             is Node -> {
                                 query.append("MERGE (n)-->(:").append(label).append(" {identifier: {").append(placeholder).append("})")
                                 properties.put(placeholder, value.id)
-                            } else -> properties.put(placeholder, value)
+                            }
+                            is List<*> -> properties.put(placeholder, value.toTypedArray())
+                            else -> properties.put(placeholder, value)
                         }
                     }
                     when (value) {
