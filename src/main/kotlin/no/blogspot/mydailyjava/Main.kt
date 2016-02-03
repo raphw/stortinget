@@ -14,10 +14,7 @@ import javax.xml.bind.JAXBException
 import javax.xml.bind.annotation.*
 import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.events.StartElement
-import kotlin.reflect.KProperty
 import kotlin.reflect.declaredMemberProperties
-import kotlin.reflect.jvm.properties
-import kotlin.reflect.memberProperties
 
 const val STORTINGET_URI = "http://data.stortinget.no"
 const val EXPORT_URI = "https://data.stortinget.no/eksport/"
@@ -357,7 +354,7 @@ interface Consumer<in T> {
         override fun onElement(element: Any) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("CREATE (main:").append(element.javaClass.simpleName).append(" {props})")
+                val query = StringBuilder("MERGE (main:").append(element.javaClass.simpleName).append(" {props})")
                 val properties = HashMap<String, Any?>()
                 element.javaClass.kotlin.declaredMemberProperties.forEach {
                     properties.put(it.name, it.get(element))
