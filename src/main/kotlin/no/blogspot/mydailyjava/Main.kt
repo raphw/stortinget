@@ -4,6 +4,8 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -430,6 +432,9 @@ class ThrottledXmlParser<T>(val endpoint: String, type: Class<out T>) {
 }
 
 fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
+    val logger = LoggerFactory.getLogger(Dispatcher::class.java)
+    val startTime = Date()
+    logger.info("Begin parsing: ${SimpleDateFormat("HH:mm").format(startTime)}")
     ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("allepartier", Party::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("fylker", Area::class.java).read(dispatcher, defaultConsumer)
@@ -473,6 +478,7 @@ fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Any>) {
             })
         }
     })
+    logger.info("Finished parsing after ${SimpleDateFormat("HH:mm:ss").format(Date().time - startTime.time)}: ${SimpleDateFormat("HH:mm").format(Date())}")
 }
 
 fun main(args: Array<String>) {
@@ -484,7 +490,9 @@ fun main(args: Array<String>) {
     } else if (args.size == 1) {
         dispatcher = Dispatcher.Asynchronous()
         val targetPath = File(args[0])
-        if (!targetPath.isDirectory || !targetPath.canRead() || !targetPath.canWrite()) {
+        if (targetPath.listFiles().isNotEmpty()) {
+            throw IllegalArgumentException("Not empty: $targetPath")
+        } else if (!targetPath.isDirectory || !targetPath.canRead() || !targetPath.canWrite()) {
             throw IllegalArgumentException("Cannot read/write or not a folder: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
