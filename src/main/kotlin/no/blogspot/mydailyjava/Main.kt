@@ -344,7 +344,7 @@ data class HearingProgram(
         override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dato") var date: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var time: List<HearingProgramElement>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var element: List<HearingProgramElement>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innledning") var introduction: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "merknad") var note: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rom_id") var roomId: String? = null,
@@ -356,10 +356,11 @@ data class HearingProgram(
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class HearingProgramElement(
+        override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rekkefolge_nummer") var order: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tekst") var text: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tidsangivelse") var timeInfo: String? = null
-)
+) : Node
 
 interface Consumer<in T : Node> {
     fun onElement(element: T)
@@ -546,14 +547,19 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
                 override fun onElement(element: Hearing) {
                     ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher,
                             Consumer.IdSetting(element, HearingProgram::date),
-                            // TODO: Consumer.IdSetting(element, HearingProgramElement::order, HearingProgram::time),
-                            defaultConsumer)
+                            object : Consumer<HearingProgram> {
+                                override fun onElement(element: HearingProgram) {
+                                    element.element?.forEach { it.id = element.id + "-" + it.order}
+                                }
+                            }, defaultConsumer)
                 }
             })
             ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher, defaultConsumer, object : Consumer<Meeting> {
                 override fun onElement(element: Meeting) {
                     if (element.id != "-1") {
-                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher, Consumer.IdSetting(element, MeetingAgendum::number), defaultConsumer)
+                        ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher,
+                                Consumer.IdSetting(element, MeetingAgendum::number),
+                                defaultConsumer)
                     }
                 }
             })
@@ -562,9 +568,15 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
                     ThrottledXmlParser("sak?sakid=${element.id}", Item::class.java).read(dispatcher, defaultConsumer)
                     ThrottledXmlParser("voteringer?sakid=${element.id}", Vote::class.java).read(dispatcher, defaultConsumer, object : Consumer<Vote> {
                         override fun onElement(element: Vote) {
-                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher, Consumer.IdSetting(element, VoteProposal::number), defaultConsumer)
-                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher, Consumer.IdSetting(element, VoteDecision::code), defaultConsumer)
-                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher, Consumer.IdSetting(element, VoteResult::reference), defaultConsumer)
+                            ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher,
+                                    Consumer.IdSetting(element, VoteProposal::number),
+                                    defaultConsumer)
+                            ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher,
+                                    Consumer.IdSetting(element, VoteDecision::code),
+                                    defaultConsumer)
+                            ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher,
+                                    Consumer.IdSetting(element, VoteResult::reference),
+                                    defaultConsumer)
                         }
                     })
                 }
