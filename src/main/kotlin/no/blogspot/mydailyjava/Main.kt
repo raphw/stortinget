@@ -401,11 +401,17 @@ interface Consumer<in T : Node> {
                         property = value.property()
                         value = value.value()
                     }
+                    fun process(value: Any?, placeholder: String, label: String) {
+                        when (value) {
+                            is Node -> {
+                                query.append("MERGE (n)-->(:").append(label).append(" {identifier: {").append(placeholder).append("})")
+                                properties.put(placeholder, value.id)
+                            } else -> properties.put(placeholder, value)
+                        }
+                    }
                     when (value) {
-                        is Node -> {
-                            query.append("MERGE (n)-->(:").append(property.javaField!!.type).append(" {identifier: {").append(property.name).append("})")
-                            properties.put(property.name, value.id)
-                        } else -> properties.put(property.name, value)
+                        is List<*> -> value.forEachIndexed { i, value -> process(value, property.name + i, value!!.javaClass.simpleName) }
+                        else -> process(value, property.name, property.javaField!!.type.simpleName)
                     }
                 }
                 val parameters = HashMap<String, Any?>()
@@ -445,7 +451,7 @@ interface Dispatcher {
     class Asynchronous(val startTime: Date, shutDown: Runnable,
                        val executor: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())) : Dispatcher, Runnable {
 
-        val semaphore = ShutdownMonitor(this, shutDown)
+        private val semaphore = ShutdownMonitor(this, shutDown)
 
         override fun <T : Node> apply(parser: ThrottledXmlParser<T>, consumers: Array<out Consumer<T>>) {
             semaphore.increment()
@@ -461,7 +467,7 @@ interface Dispatcher {
             super.endOfScript(startTime)
         }
 
-        class Job<T : Node>(val semaphore: ShutdownMonitor, val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
+        private class Job<T : Node>(val semaphore: ShutdownMonitor, val parser: ThrottledXmlParser<T>, val consumers: Array<out Consumer<T>>) : Runnable {
             override fun run() {
                 try {
                     parser.doRead(consumers)
@@ -470,19 +476,19 @@ interface Dispatcher {
                 }
             }
         }
-    }
-}
 
-class ShutdownMonitor(vararg val listeners: Runnable) {
-    val counter = AtomicInteger(1)
+        private class ShutdownMonitor(vararg val listeners: Runnable) {
+            val counter = AtomicInteger(1)
 
-    fun increment(): Unit {
-        counter.incrementAndGet()
-    }
+            fun increment(): Unit {
+                counter.incrementAndGet()
+            }
 
-    fun decrement(): Unit {
-        if (counter.decrementAndGet() == 0) {
-            listeners.forEach { it.run() }
+            fun decrement(): Unit {
+                if (counter.decrementAndGet() == 0) {
+                    listeners.forEach { it.run() }
+                }
+            }
         }
     }
 }
@@ -549,7 +555,7 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
                             Consumer.IdSetting(element, HearingProgram::date),
                             object : Consumer<HearingProgram> {
                                 override fun onElement(element: HearingProgram) {
-                                    element.element?.forEach { it.id = element.id + "-" + it.order}
+                                    element.element?.forEach { it.id = element.id + "-" + it.order }
                                 }
                             }, defaultConsumer)
                 }
