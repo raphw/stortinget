@@ -392,7 +392,7 @@ interface Consumer<in T : Node> {
         override fun onElement(element: Node) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" identifier: {id}) SET n = {properties}")
+                val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" {identifier: {id}}) SET n = {properties} ")
                 val properties = HashMap<String, Any?>()
                 element.javaClass.kotlin.declaredMemberProperties.filter { it.name == "id" }.forEach {
                     var value = it.get(element)
@@ -404,7 +404,7 @@ interface Consumer<in T : Node> {
                     fun process(value: Any?, placeholder: String, label: String) {
                         when (value) {
                             is Node -> {
-                                query.append("MERGE (n)-->(:").append(label).append(" {identifier: {").append(placeholder).append("})")
+                                query.append("MERGE (n)-->(:").append(label).append(" {identifier: {").append(placeholder).append("}}) ")
                                 properties.put(placeholder, value.id)
                             }
                             is List<*> -> properties.put(placeholder, value.toTypedArray())
@@ -418,7 +418,8 @@ interface Consumer<in T : Node> {
                 }
                 val parameters = HashMap<String, Any?>()
                 parameters.put("id", element.id)
-                database.execute(query.toString(), Collections.singletonMap("properties", properties) as Map<String, Any>)
+                parameters.put("properties", properties)
+                database.execute(query.toString(), parameters)
                 transaction.success()
             } catch (exception: Exception) {
                 transaction.failure()
