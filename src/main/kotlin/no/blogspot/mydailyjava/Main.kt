@@ -65,7 +65,7 @@ data class Topic(
         @field:XmlElement(namespace = STORTINGET_URI, name = "er_hovedemne") var main: Boolean? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "hovedemne_id") var mainId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: Array<Topic>? = null
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "representant")
@@ -104,7 +104,7 @@ data class Question(
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_pa_vegne_av_minister_id") var answeredForMinisterId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_pa_vegne_av_minister_tittel") var answeredForMinisterTitle: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "datert_dato") var dated: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: Array<Topic>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "flyttet_til") var movedTo: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fremsatt_av_annen") var delayedBy: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rette_vedkommende") var amendedConcerned: String? = null,
@@ -127,15 +127,15 @@ data class ItemSummary(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dokumentgruppe") var group: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: Array<Topic>? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "forslagstiller_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var suggestedBy: Array<Representative>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "forslagstiller_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var suggestedBy: List<Representative>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "henvisning") var reference: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innstilling_id") var suggestionId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innstilling_kode") var suggestionCode: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "komite") var committee: Committee? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "korttittel") var shortTitle: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sak_fremmet_id") var supportId: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksordfoerer_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: Array<Representative>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksordfoerer_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: List<Representative>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sist_oppdatert_dato") var lastUpdate: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "status") var state: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
@@ -148,7 +148,7 @@ data class Item(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dokumentgruppe") var group: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: Array<Topic>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var sub: List<Topic>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "ferdigbehandlet") var done: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "henvisning") var reference: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innstillingstekst") var suggestion: String? = null,
@@ -156,13 +156,13 @@ data class Item(
         @field:XmlElement(namespace = STORTINGET_URI, name = "korttittel") var shortTitle: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "kortvedtak") var shortText: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "parentestekst") var additionalText: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "publikasjon_referanse_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "publikasjon_referanse") var publications: Array<Publication>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "publikasjon_referanse_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "publikasjon_referanse") var publications: List<Publication>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sak_nummer") var itemId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sak_opphav") var itemOrigin: ItemOrigin? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "saksgang") var itemProcedure: ItemProcedure? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksordfoerer_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: Array<Representative>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksordfoerer_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: List<Representative>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "status") var state: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "stikkord_liste") var tags: Array<String>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "stikkord_liste") var tags: List<String>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "vedtakstekst") var note: String? = null
@@ -181,7 +181,7 @@ data class Publication(
 
 @XmlAccessorType(XmlAccessType.FIELD)
 data class ItemOrigin(
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "forslagstiller_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: Array<Representative>? = null
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "forslagstiller_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "representant") var spokesmen: List<Representative>? = null
 )
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "saksgang")
@@ -189,7 +189,7 @@ data class ItemOrigin(
 data class ItemProcedure(
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksgang_steg_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "saksgang_steg") var step: Array<ItemProcedureStep>? = null
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "saksgang_steg_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "saksgang_steg") var step: List<ItemProcedureStep>? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "saksgang_steg")
@@ -294,8 +294,8 @@ data class MeetingAgendum(
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Hearing(
         @field:XmlElement(namespace = STORTINGET_URI, name = "anmodningsfrist_dato_tid") var protocolId: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horing_sak_info_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horing_sak_info") var info: Array<HearingItemInfo>? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingstidspunkt_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingstidspunkt") var time: Array<HearingTimeInfo>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horing_sak_info_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horing_sak_info") var info: List<HearingItemInfo>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingstidspunkt_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingstidspunkt") var time: List<HearingTimeInfo>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "komite") var committee: Committee? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "publisert_dato") var publishingDate: String? = null,
@@ -322,7 +322,7 @@ data class HearingProgram(
         override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dato") var date: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var time: Array<HearingProgramElement>? = null,
+        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var time: List<HearingProgramElement>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innledning") var introduction: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "merknad") var note: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rom_id") var roomId: String? = null,
