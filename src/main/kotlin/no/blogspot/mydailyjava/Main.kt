@@ -538,7 +538,7 @@ fun main(args: Array<String>) {
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
-    LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm").format(startTime)}")
+    LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
     readAll(dispatcher, defaultConsumer)
     dispatcher.endOfScript(startTime)
 }
