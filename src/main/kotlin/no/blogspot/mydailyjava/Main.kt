@@ -434,6 +434,7 @@ interface Consumer<in T : Node> {
                     return
                 } catch (exception: DeadlockDetectedException) {
                     transaction.failure()
+                    logger.debug("Dead lock on inserting $element", exception)
                 } catch (exception: Exception) {
                     transaction.failure()
                     logger.error("Could not insert $element", exception)
