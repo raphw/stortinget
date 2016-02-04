@@ -581,7 +581,7 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
     }
 
     fun doRead(consumers: Array<out Consumer<T>>, maxAttempts: Int = 15) {
-        var attempt = 0;
+        var attempt = 0
         while (attempt++ < maxAttempts) {
             try {
                 val stream = URL(EXPORT_URI + endpoint).openStream()
@@ -608,7 +608,7 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
                 } finally {
                     stream.close()
                 }
-                return;
+                return
             } catch(exception: Exception) {
                 logger.debug("Error reading file from $endpoint", exception)
             }
