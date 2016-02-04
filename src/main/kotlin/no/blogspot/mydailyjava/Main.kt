@@ -676,12 +676,6 @@ fun main(args: Array<String>) {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     LoggerFactory.getLogger(Dispatcher::class.java).info("Start: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
-    //    readAll(dispatcher, defaultConsumer)
-    ThrottledXmlParser("stortingsperioder", Period::class.java).read(dispatcher, defaultConsumer, object : Consumer<Period> {
-        override fun onElement(element: Period) {
-            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(dispatcher,
-                    defaultConsumer.linkTo(element, "elected"))
-        }
-    })
+    readAll(dispatcher, defaultConsumer)
     dispatcher.endOfScript(startTime)
 }
