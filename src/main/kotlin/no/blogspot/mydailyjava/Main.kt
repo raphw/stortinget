@@ -453,7 +453,9 @@ interface Consumer<in T : Node> {
                         }
                     }
                     when (value) {
-                        is List<*> -> value.forEachIndexed { i, value -> process(value, property.name + i, value!!.javaClass.simpleName) }
+                        is List<*> -> value.forEachIndexed {
+                            i, value -> process(if (value is Skip) value.value() else value, property.name + i, value!!.javaClass.simpleName)
+                        }
                         else -> process(value, property.name, property.javaField!!.type.simpleName)
                     }
                 }
@@ -671,7 +673,8 @@ fun main(args: Array<String>) {
             throw IllegalArgumentException("Cannot write to folder or not a folder at all: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
-        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
+        dispatcher = Dispatcher.Synchronous
+//        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
