@@ -424,9 +424,9 @@ interface Consumer<in T : Node> {
             return this.replace("([a-z])([A-Z]+)", "$1_$2").toUpperCase(Locale.US)
         }
 
-        private fun transactionalWrite(element: Any, doWrite: () -> Unit, repeats: Int = 5): Unit {
+        private fun transactionalWrite(element: Any, doWrite: () -> Unit, maxAttempts: Int = 20): Unit {
             var attempt = 0
-            while (attempt++ < repeats) {
+            while (attempt++ < maxAttempts) {
                 val transaction = database.beginTx()
                 try {
                     doWrite()
@@ -442,7 +442,7 @@ interface Consumer<in T : Node> {
                     transaction.close()
                 }
             }
-            logger.error("Too many deadlocks during insert of $element")
+            logger.error("Too many deadlocks during insert of $element ($maxAttempts)")
         }
 
         override fun onElement(element: Node) {
@@ -682,8 +682,7 @@ fun main(args: Array<String>) {
             throw IllegalArgumentException("Cannot write to folder or not a folder at all: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
-        dispatcher = Dispatcher.Synchronous
-        //        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
+        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
