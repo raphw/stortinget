@@ -394,7 +394,7 @@ interface Consumer<in T : Node> {
             try {
                 val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" {id: {id}}) SET n += {properties} ")
                 val properties = HashMap<String, Any?>()
-                element.javaClass.kotlin.declaredMemberProperties.filter { it.name == "id" }.forEach {
+                element.javaClass.kotlin.declaredMemberProperties.filter { it.name != "id" }.forEach {
                     var value = it.get(element)
                     var property: KProperty<*> = it
                     while (value is Skip) {
@@ -404,7 +404,7 @@ interface Consumer<in T : Node> {
                     fun process(value: Any?, name: String, label: String) {
                         when (value) {
                             is Node -> {
-                                query.append("MERGE (n)-[:").append("<TYPE>").append("]->(:").append(label).append(" {id: {").append(name).append("}}) ")
+                                query.append("MERGE (n)-[:").append(name.toUpperCase()).append("]->(:").append(label).append(" {id: {").append(name).append("}}) ")
                                 properties.put(name, value.id)
                             }
                             is List<*> -> properties.put(name, value.toTypedArray())
@@ -442,7 +442,7 @@ interface Dispatcher {
         val endTime = Date()
         val difference = endTime.time - startTime.time
         LoggerFactory.getLogger(Dispatcher::class.java)
-                .info("Finished parsing after ${difference / (1000 * 60)}:${difference / 1000}: ${SimpleDateFormat("HH:mm").format(endTime)}")
+                .info("Finished: ${SimpleDateFormat("HH:mm:ss").format(endTime)} (took ${difference / (1000 * 60)} minutes, ${difference / 1000}) seconds")
     }
 
     object Synchronous : Dispatcher {
@@ -606,14 +606,14 @@ fun main(args: Array<String>) {
         if (targetPath.listFiles().isNotEmpty()) {
             throw IllegalArgumentException("Not empty: $targetPath")
         } else if (!targetPath.isDirectory || !targetPath.canWrite()) {
-            throw IllegalArgumentException("Cannot rite to folder or not a folder at all: $targetPath")
+            throw IllegalArgumentException("Cannot write to folder or not a folder at all: $targetPath")
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
         dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
-    LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
+    LoggerFactory.getLogger(Dispatcher::class.java).info("Start: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
 //    readAll(dispatcher, defaultConsumer)
     ThrottledXmlParser("stortingsperioder", Period::class.java).read(dispatcher, defaultConsumer, object : Consumer<Period> {
         override fun onElement(element: Period) {
