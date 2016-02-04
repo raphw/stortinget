@@ -2,6 +2,7 @@ package no.blogspot.mydailyjava
 
 import org.neo4j.graphdb.DynamicLabel
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
+import org.neo4j.kernel.DeadlockDetectedException
 import org.reflections.Reflections
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -423,9 +424,29 @@ interface Consumer<in T : Node> {
             return this.replace("([a-z])([A-Z]+)", "$1_$2").toUpperCase(Locale.US)
         }
 
+        private fun transactionalWrite(element: Any, doWrite: () -> Unit, repeats: Int = 5): Unit {
+            var attempt = 0
+            while (attempt++ < repeats) {
+                val transaction = database.beginTx()
+                try {
+                    doWrite()
+                    transaction.success()
+                    return
+                } catch (exception: DeadlockDetectedException) {
+                    transaction.failure()
+                } catch (exception: Exception) {
+                    transaction.failure()
+                    logger.error("Could not insert $element", exception)
+                    return
+                } finally {
+                    transaction.close()
+                }
+            }
+            logger.error("Too many deadlocks during insert of $element")
+        }
+
         override fun onElement(element: Node) {
-            val transaction = database.beginTx()
-            try {
+            transactionalWrite(element, {
                 val query = StringBuilder("MERGE (n:${element.javaClass.simpleName} {id: {id}}) SET n += {properties}")
                 val parameters = HashMap<String, Any?>()
                 parameters.put("id", element.id)
@@ -443,7 +464,7 @@ interface Consumer<in T : Node> {
                             is Node -> {
                                 val identifier = if (index == -1) name else name + index
                                 if (value.id != null) {
-                                    query.append(" MERGE ($identifier:$label {id: {$identifier}}) MERGE (n)-[:${name.toCamelCase()}]->($identifier)")
+                                    query.append(" MERGE ($identifier:$label {id: {$identifier}}) CREATE (n)-[:${name.toCamelCase()}]->($identifier)")
                                     parameters.put(identifier, value.id)
                                 } else {
                                     logger.debug("Incomplete link $name ('$identifier') of $element")
@@ -455,19 +476,14 @@ interface Consumer<in T : Node> {
                     }
                     when (value) {
                         is List<*> -> value.forEachIndexed {
-                            index, value -> process(if (value is Skip) value.value() else value, property.name, value!!.javaClass.simpleName, index)
+                            index, value ->
+                            process(if (value is Skip) value.value() else value, property.name, value!!.javaClass.simpleName, index)
                         }
                         else -> process(value, property.name, property.javaField!!.type.simpleName)
                     }
                 }
                 database.execute(query.toString(), parameters)
-                transaction.success()
-            } catch (exception: Exception) {
-                transaction.failure()
-                logger.error("Could not insert $element", exception)
-            } finally {
-                transaction.close()
-            }
+            })
         }
 
         override fun linkTo(parent: Node, name: String): Consumer<Node> {
@@ -481,20 +497,12 @@ interface Consumer<in T : Node> {
         private inner class Linking(val parent: Node, val name: String) : Consumer<Node> {
 
             override fun onElement(element: Node) {
-                this@GraphWriting.onElement(element)
-                val transaction = database.beginTx()
-                try {
+                transactionalWrite(element, {
                     database.execute("MERGE (source:${element.javaClass.simpleName}{id: {source}}) " +
                             "MERGE (target:${parent.javaClass.simpleName} {id: {target}}) " +
-                            "MERGE (source)-[:${name.toCamelCase()}]->(target)",
+                            "CREATE (source)-[:${name.toCamelCase()}]->(target)",
                             mapOf("source" to element.id, "target" to parent.id))
-                    transaction.success()
-                } catch(exception: Exception) {
-                    transaction.failure()
-                    logger.error("Could not link $parent to $element", exception)
-                } finally {
-                    transaction.close()
-                }
+                })
             }
         }
     }
@@ -675,7 +683,7 @@ fun main(args: Array<String>) {
         }
         defaultConsumer = Consumer.GraphWriting(targetPath)
         dispatcher = Dispatcher.Synchronous
-//        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
+        //        dispatcher = Dispatcher.Asynchronous(startTime, defaultConsumer)
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
