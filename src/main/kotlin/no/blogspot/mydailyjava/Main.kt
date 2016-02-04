@@ -401,14 +401,14 @@ interface Consumer<in T : Node> {
                         property = value.property()
                         value = value.value()
                     }
-                    fun process(value: Any?, placeholder: String, label: String) {
+                    fun process(value: Any?, name: String, label: String) {
                         when (value) {
                             is Node -> {
-                                query.append("MERGE (n)-->(:").append(label).append(" {identifier: {").append(placeholder).append("}}) ")
-                                properties.put(placeholder, value.id)
+                                query.append("MERGE (n)-->(:").append(label).append(" {identifier: {").append(name).append("}}) ")
+                                properties.put(name, value.id)
                             }
-                            is List<*> -> properties.put(placeholder, value.toTypedArray())
-                            else -> properties.put(placeholder, value)
+                            is List<*> -> properties.put(name, value.toTypedArray())
+                            else -> properties.put(name, value)
                         }
                     }
                     when (value) {
@@ -614,6 +614,11 @@ fun main(args: Array<String>) {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     LoggerFactory.getLogger(Dispatcher::class.java).info("Begin parsing: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
-    readAll(dispatcher, defaultConsumer)
+//    readAll(dispatcher, defaultConsumer)
+    ThrottledXmlParser("stortingsperioder", Period::class.java).read(dispatcher, defaultConsumer, object : Consumer<Period> {
+        override fun onElement(element: Period) {
+            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(dispatcher, defaultConsumer)
+        }
+    })
     dispatcher.endOfScript(startTime)
 }
