@@ -680,6 +680,7 @@ fun main(args: Array<String>) {
     val dispatcher: Dispatcher
     val defaultConsumer: Consumer.Linkable<Node>
     val startTime = Date()
+    LoggerFactory.getLogger(Dispatcher::class.java).info("Start: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
     if (args.isEmpty()) {
         dispatcher = Dispatcher.Synchronous
         defaultConsumer = Consumer.Printing
@@ -695,7 +696,6 @@ fun main(args: Array<String>) {
     } else {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
-    LoggerFactory.getLogger(Dispatcher::class.java).info("Start: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
     readAll(dispatcher, defaultConsumer)
     dispatcher.endOfScript(startTime)
 }
