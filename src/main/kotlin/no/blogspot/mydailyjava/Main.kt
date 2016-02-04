@@ -580,30 +580,38 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
         dispatcher.apply(this, consumers)
     }
 
-    fun doRead(consumers: Array<out Consumer<T>>) {
-        val stream = URL(EXPORT_URI + endpoint).openStream()
-        try {
-            val reader = XMLInputFactory.newFactory().createXMLEventReader(stream)
+    fun doRead(consumers: Array<out Consumer<T>>, maxAttempts: Int = 15) {
+        var attempt = 0;
+        while (attempt++ < maxAttempts) {
             try {
-                while (reader.hasNext()) {
-                    val event = reader.peek()
-                    if (event != null && event.isStartElement && (event as StartElement).name.localPart == tag) {
-                        try {
-                            @Suppress("UNCHECKED_CAST")
-                            val element = unmarshaller.unmarshal(reader) as T
-                            consumers.forEach { it.onElement(element) }
-                        } catch(exception: JAXBException) {
-                            exception.printStackTrace()
+                val stream = URL(EXPORT_URI + endpoint).openStream()
+                try {
+                    val reader = XMLInputFactory.newFactory().createXMLEventReader(stream)
+                    try {
+                        while (reader.hasNext()) {
+                            val event = reader.peek()
+                            if (event != null && event.isStartElement && (event as StartElement).name.localPart == tag) {
+                                try {
+                                    @Suppress("UNCHECKED_CAST")
+                                    val element = unmarshaller.unmarshal(reader) as T
+                                    consumers.forEach { it.onElement(element) }
+                                } catch(exception: JAXBException) {
+                                    logger.error("Unexpected data read from $endpoint")
+                                }
+                            } else {
+                                reader.next()
+                            }
                         }
-                    } else {
-                        reader.next()
+                    } finally {
+                        reader.close()
                     }
+                } finally {
+                    stream.close()
                 }
-            } finally {
-                reader.close()
+                return;
+            } catch(exception: Exception) {
+                logger.debug("Error reading file from $endpoint", exception)
             }
-        } finally {
-            stream.close()
         }
     }
 }
