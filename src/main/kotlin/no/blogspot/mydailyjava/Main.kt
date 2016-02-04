@@ -1,6 +1,8 @@
 package no.blogspot.mydailyjava
 
+import org.neo4j.graphdb.DynamicLabel
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
+import org.reflections.Reflections
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URL
@@ -372,7 +374,12 @@ interface Consumer<in T : Node> {
         }
     }
 
-    object Printing : Consumer<Node> {
+    interface Linkable<in S : Node> : Consumer<S> {
+
+        fun linkTo(parent: Node, name: String): Consumer<S>
+    }
+
+    object Printing : Consumer.Linkable<Node> {
         val logger = LoggerFactory.getLogger(Printing.javaClass)
 
         override fun onElement(element: Node) {
@@ -383,17 +390,47 @@ interface Consumer<in T : Node> {
                 }
             }
         }
+
+        override fun linkTo(parent: Node, name: String): Consumer<Node> {
+            return this
+        }
     }
 
-    class GraphWriting(targetPath: File) : Consumer<Node>, Runnable {
+    class GraphWriting(targetPath: File) : Consumer.Linkable<Node>, Runnable {
 
-        val database = GraphDatabaseFactory().newEmbeddedDatabase(targetPath)
+        private val database = GraphDatabaseFactory().newEmbeddedDatabase(targetPath)
+
+        private val logger = LoggerFactory.getLogger(GraphWriting::class.java)
+
+        init {
+            val transaction = database.beginTx()
+            try {
+                Reflections(Node::class.java.`package`.name)
+                        .getSubTypesOf(Node::class.java)
+                        .forEach {
+                            logger.info("Creating index for ${it.simpleName}")
+                            database.schema().indexFor(DynamicLabel.label(it.simpleName)).on("id").create()
+                        }
+            } catch(exception: Exception) {
+                transaction.failure()
+                logger.error("Could not create indices", exception)
+            } finally {
+                transaction.close()
+            }
+        }
+
+        private fun String.toCamelCase(): String {
+            return this.replace("([a-z])([A-Z]+)", "$1_$2").toUpperCase(Locale.US)
+        }
 
         override fun onElement(element: Node) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("MERGE (n:").append(element.javaClass.simpleName).append(" {id: {id}}) SET n += {properties} ")
+                val query = StringBuilder("MERGE (n:${element.javaClass.simpleName} {id: {id}}) SET n += {properties} ")
+                val parameters = HashMap<String, Any?>()
+                parameters.put("id", element.id)
                 val properties = HashMap<String, Any?>()
+                parameters.put("properties", properties)
                 element.javaClass.kotlin.declaredMemberProperties.filter { it.name != "id" }.forEach {
                     var value = it.get(element)
                     var property: KProperty<*> = it
@@ -404,8 +441,12 @@ interface Consumer<in T : Node> {
                     fun process(value: Any?, name: String, label: String) {
                         when (value) {
                             is Node -> {
-                                query.append("MERGE (n)-[:").append(name.toUpperCase()).append("]->(:").append(label).append(" {id: {").append(name).append("}}) ")
-                                properties.put(name, value.id)
+                                if (value.id != null) {
+                                    query.append("MERGE ($name:$label {id: {$name}}) MERGE (n)-[:${name.toCamelCase()}]->($name)")
+                                    parameters.put(name, value.id)
+                                } else {
+                                    logger.debug("Incomplete link '$name' of $element")
+                                }
                             }
                             is List<*> -> properties.put(name, value.toTypedArray())
                             else -> properties.put(name, value)
@@ -416,21 +457,42 @@ interface Consumer<in T : Node> {
                         else -> process(value, property.name, property.javaField!!.type.simpleName)
                     }
                 }
-                val parameters = HashMap<String, Any?>()
-                parameters.put("id", element.id)
-                parameters.put("properties", properties)
                 database.execute(query.toString(), parameters)
                 transaction.success()
             } catch (exception: Exception) {
                 transaction.failure()
-                exception.printStackTrace()
+                logger.error("Could not insert $element", exception)
             } finally {
                 transaction.close()
             }
         }
 
+        override fun linkTo(parent: Node, name: String): Consumer<Node> {
+            return Linking(parent, name)
+        }
+
         override fun run() {
             database.shutdown()
+        }
+
+        private inner class Linking(val parent: Node, val name: String) : Consumer<Node> {
+
+            override fun onElement(element: Node) {
+                this@GraphWriting.onElement(element)
+                val transaction = database.beginTx()
+                try {
+                    database.execute("MERGE (source:${element.javaClass.simpleName}{id: {source}}) " +
+                            "MERGE (target:${parent.javaClass.simpleName} {id: {target}}) " +
+                            "MERGE (source)-[:${name.toCamelCase()}]->(target)",
+                            mapOf("source" to element.id, "target" to parent.id))
+                    transaction.success()
+                } catch(exception: Exception) {
+                    transaction.failure()
+                    logger.error("Could not link $parent to $element", exception)
+                } finally {
+                    transaction.close()
+                }
+            }
         }
     }
 }
@@ -442,7 +504,7 @@ interface Dispatcher {
         val endTime = Date()
         val difference = endTime.time - startTime.time
         LoggerFactory.getLogger(Dispatcher::class.java)
-                .info("Finished: ${SimpleDateFormat("HH:mm:ss").format(endTime)} (took ${difference / (1000 * 60)} minutes, ${difference / 1000}) seconds")
+                .info("Finished: ${SimpleDateFormat("HH:mm:ss").format(endTime)} (took ${difference / (1000 * 60)} minutes, ${difference / 1000} seconds)")
     }
 
     object Synchronous : Dispatcher {
@@ -534,7 +596,7 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
     }
 }
 
-private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
+private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer.Linkable<Node>) {
     ThrottledXmlParser("allekomiteer", Committee::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("allepartier", Party::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("fylker", Area::class.java).read(dispatcher, defaultConsumer)
@@ -596,7 +658,7 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer<Node>) {
 
 fun main(args: Array<String>) {
     val dispatcher: Dispatcher
-    val defaultConsumer: Consumer<Node>
+    val defaultConsumer: Consumer.Linkable<Node>
     val startTime = Date()
     if (args.isEmpty()) {
         dispatcher = Dispatcher.Synchronous
@@ -614,10 +676,11 @@ fun main(args: Array<String>) {
         throw IllegalArgumentException("Illegal arguments: $args")
     }
     LoggerFactory.getLogger(Dispatcher::class.java).info("Start: ${SimpleDateFormat("HH:mm:ss").format(startTime)}")
-//    readAll(dispatcher, defaultConsumer)
+    //    readAll(dispatcher, defaultConsumer)
     ThrottledXmlParser("stortingsperioder", Period::class.java).read(dispatcher, defaultConsumer, object : Consumer<Period> {
         override fun onElement(element: Period) {
-            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(dispatcher, defaultConsumer)
+            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "elected"))
         }
     })
     dispatcher.endOfScript(startTime)

@@ -11,17 +11,9 @@ dependencies {
     compile 'org.jetbrains.kotlin:kotlin-stdlib:1.0.0-beta-4589'
     compile 'org.jetbrains.kotlin:kotlin-reflect:1.0.0-beta-4589'
     compile 'org.neo4j:neo4j:2.3.2'
+    compile 'org.reflections:reflections:0.9.10'
     compile 'org.slf4j:slf4j-api:1.7.14'
     compile 'org.slf4j:slf4j-simple:1.7.14'
-}
-
-task run (type: JavaExec, dependsOn: classes){
-    if(project.hasProperty('arguments')){
-        args(arguments.split(','))
-    }
-    description = "Stortinget XML parser"
-    main = "no.blogspot.mydailyjava.MainKt"
-    classpath = sourceSets.main.runtimeClasspath
 }
 
 buildscript {
