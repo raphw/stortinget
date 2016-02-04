@@ -426,7 +426,7 @@ interface Consumer<in T : Node> {
         override fun onElement(element: Node) {
             val transaction = database.beginTx()
             try {
-                val query = StringBuilder("MERGE (n:${element.javaClass.simpleName} {id: {id}}) SET n += {properties} ")
+                val query = StringBuilder("MERGE (n:${element.javaClass.simpleName} {id: {id}}) SET n += {properties}")
                 val parameters = HashMap<String, Any?>()
                 parameters.put("id", element.id)
                 val properties = HashMap<String, Any?>()
@@ -438,14 +438,15 @@ interface Consumer<in T : Node> {
                         property = value.property()
                         value = value.value()
                     }
-                    fun process(value: Any?, name: String, label: String) {
+                    fun process(value: Any?, name: String, label: String, index: Int = -1) {
                         when (value) {
                             is Node -> {
+                                val identifier = if (index == -1) name else name + index
                                 if (value.id != null) {
-                                    query.append("MERGE ($name:$label {id: {$name}}) MERGE (n)-[:${name.toCamelCase()}]->($name)")
-                                    parameters.put(name, value.id)
+                                    query.append(" MERGE ($identifier:$label {id: {$identifier}}) MERGE (n)-[:${name.toCamelCase()}]->($identifier)")
+                                    parameters.put(identifier, value.id)
                                 } else {
-                                    logger.debug("Incomplete link '$name' of $element")
+                                    logger.debug("Incomplete link $name ('$identifier') of $element")
                                 }
                             }
                             is List<*> -> properties.put(name, value.toTypedArray())
@@ -454,7 +455,7 @@ interface Consumer<in T : Node> {
                     }
                     when (value) {
                         is List<*> -> value.forEachIndexed {
-                            i, value -> process(if (value is Skip) value.value() else value, property.name + i, value!!.javaClass.simpleName)
+                            index, value -> process(if (value is Skip) value.value() else value, property.name, value!!.javaClass.simpleName, index)
                         }
                         else -> process(value, property.name, property.javaField!!.type.simpleName)
                     }
