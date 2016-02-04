@@ -712,17 +712,25 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer.Linkable<N
     ThrottledXmlParser("saksganger", ItemProcedure::class.java).read(dispatcher, defaultConsumer)
     ThrottledXmlParser("stortingsperioder", Period::class.java).read(dispatcher, defaultConsumer, object : Consumer<Period> {
         override fun onElement(element: Period) {
-            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(dispatcher, defaultConsumer)
+            ThrottledXmlParser("representanter?stortingsperiodeid=${element.id}", Representative::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "elected"))
         }
     })
     ThrottledXmlParser("sesjoner", Session::class.java).read(dispatcher, defaultConsumer, object : Consumer<Session> {
         override fun onElement(element: Session) {
-            ThrottledXmlParser("komiteer?sesjonid=${element.id}", Committee::class.java).read(dispatcher, defaultConsumer)
-            ThrottledXmlParser("partier?sesjonid=${element.id}", Party::class.java).read(dispatcher, defaultConsumer)
-            ThrottledXmlParser("sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher, defaultConsumer)
-            ThrottledXmlParser("interpellasjoner?sesjonid=${element.id}", Question::class.java).read(dispatcher, defaultConsumer)
-            ThrottledXmlParser("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher, defaultConsumer)
-            ThrottledXmlParser("horinger?sesjonid=${element.id}", Hearing::class.java).read(dispatcher, defaultConsumer, object : Consumer<Hearing> {
+            ThrottledXmlParser("komiteer?sesjonid=${element.id}", Committee::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "involved"))
+            ThrottledXmlParser("partier?sesjonid=${element.id}", Party::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "involved"))
+            ThrottledXmlParser("sporretimesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "asked"))
+            ThrottledXmlParser("interpellasjoner?sesjonid=${element.id}", Question::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "asked"))
+            ThrottledXmlParser("skriftligesporsmal?sesjonid=${element.id}", Question::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "asked"))
+            ThrottledXmlParser("horinger?sesjonid=${element.id}", Hearing::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "heard"),
+                    object : Consumer<Hearing> {
                 override fun onElement(element: Hearing) {
                     ThrottledXmlParser("horingsprogram?horingid=${element.id}", HearingProgram::class.java).read(dispatcher,
                             Consumer.IdSetting(element, HearingProgram::date),
@@ -730,32 +738,39 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer.Linkable<N
                                 override fun onElement(element: HearingProgram) {
                                     element.element?.forEach { it.id = element.id + "-" + it.order }
                                 }
-                            }, defaultConsumer)
+                            }, defaultConsumer.linkTo(element, "partOf"))
                 }
             })
-            ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher, defaultConsumer, object : Consumer<Meeting> {
+            ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "meet"),
+                    object : Consumer<Meeting> {
                 override fun onElement(element: Meeting) {
                     if (element.id != "-1") {
                         ThrottledXmlParser("dagsorden?moteid=${element.id}", MeetingAgendum::class.java).read(dispatcher,
                                 Consumer.IdSetting(element, MeetingAgendum::number),
-                                defaultConsumer)
+                                defaultConsumer.linkTo(element, "during"))
                     }
                 }
             })
-            ThrottledXmlParser("saker?sesjonid=${element.id}", ItemSummary::class.java).read(dispatcher, defaultConsumer, object : Consumer<ItemSummary> {
+            ThrottledXmlParser("saker?sesjonid=${element.id}", ItemSummary::class.java).read(dispatcher,
+                    defaultConsumer.linkTo(element, "discussed"),
+                    object : Consumer<ItemSummary> {
                 override fun onElement(element: ItemSummary) {
-                    ThrottledXmlParser("sak?sakid=${element.id}", Item::class.java).read(dispatcher, defaultConsumer)
-                    ThrottledXmlParser("voteringer?sakid=${element.id}", Vote::class.java).read(dispatcher, defaultConsumer, object : Consumer<Vote> {
+                    ThrottledXmlParser("sak?sakid=${element.id}", Item::class.java).read(dispatcher,
+                            defaultConsumer.linkTo(element, "summarized"))
+                    ThrottledXmlParser("voteringer?sakid=${element.id}", Vote::class.java).read(dispatcher,
+                            defaultConsumer.linkTo(element, "voted"),
+                            object : Consumer<Vote> {
                         override fun onElement(element: Vote) {
                             ThrottledXmlParser("voteringsforslag?voteringid=${element.id}", VoteProposal::class.java).read(dispatcher,
                                     Consumer.IdSetting(element, VoteProposal::number),
-                                    defaultConsumer)
+                                    defaultConsumer.linkTo(element, "proposedFor"))
                             ThrottledXmlParser("voteringsvedtak?voteringid=${element.id}", VoteDecision::class.java).read(dispatcher,
                                     Consumer.IdSetting(element, VoteDecision::code),
-                                    defaultConsumer)
+                                    defaultConsumer.linkTo(element, "decidedDuring"))
                             ThrottledXmlParser("voteringsresultat?voteringid=${element.id}", VoteResult::class.java).read(dispatcher,
                                     Consumer.IdSetting(element, VoteResult::reference),
-                                    defaultConsumer)
+                                    defaultConsumer.linkTo(element, "doesDecide"))
                         }
                     })
                 }
