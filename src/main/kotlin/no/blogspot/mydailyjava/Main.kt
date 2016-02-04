@@ -15,7 +15,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.xml.bind.JAXBContext
 import javax.xml.bind.JAXBException
 import javax.xml.bind.annotation.*
+import javax.xml.bind.annotation.adapters.XmlAdapter
 import javax.xml.stream.XMLInputFactory
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter
 import javax.xml.stream.events.StartElement
 import kotlin.reflect.KProperty
 import kotlin.reflect.declaredMemberProperties
@@ -31,6 +33,92 @@ interface Node {
 interface Skip {
     fun value(): Any?
     fun property(): KProperty<*>
+}
+
+class DateAdapter : XmlAdapter<String, Date>() {
+
+    private val placeholder = "0001-01-01T00:00:00"
+
+    private val format = "yyyy-MM-dd'T'HH:mm:ss"
+
+    override fun unmarshal(value: String?): Date? {
+        return if (value == placeholder) null else SimpleDateFormat(format).parse(value)
+    }
+
+    override fun marshal(value: Date?): String? {
+        return if (value == null) placeholder else SimpleDateFormat(format).format(value)
+    }
+}
+
+enum class Gender {
+
+    MALE, FEMALE;
+
+    class Adapter : XmlAdapter<String, Gender>() {
+        override fun marshal(value: Gender?): String? {
+            when (value) {
+                MALE -> return "mann"
+                FEMALE -> return "kvinne"
+                else -> throw IllegalArgumentException("Unknown value: $value")
+            }
+        }
+
+        override fun unmarshal(value: String?): Gender? {
+            when (value) {
+                "mann" -> return MALE
+                "kvinne" -> return FEMALE
+                else -> throw IllegalArgumentException("Unknown value: $value")
+            }
+        }
+    }
+}
+
+enum class QuestionState {
+
+    ANSWERED, NOT_ANSWERED;
+
+    class Adapter : XmlAdapter<String, QuestionState>() {
+        override fun marshal(value: QuestionState?): String? {
+            when (value) {
+                ANSWERED -> return "besvart"
+                NOT_ANSWERED -> return "ikke besvart"
+                else -> throw IllegalArgumentException("Unknown value: $value")
+            }
+        }
+
+        override fun unmarshal(value: String?): QuestionState? {
+            when (value) {
+                "besvart" -> return ANSWERED
+                "ikke besvart" -> return NOT_ANSWERED
+                else -> throw IllegalArgumentException("Unknown value: $value")
+            }
+        }
+    }
+}
+
+enum class QuestionType {
+
+    ORAL, WRITTEN, INTERPELLATION;
+
+    class Adapter : XmlAdapter<String, QuestionType>() {
+        override fun marshal(value: QuestionType?): String? {
+            when (value) {
+                ORAL -> return "muntlig_sporsmal"
+                WRITTEN -> return "skriftlig_sporsmal"
+                INTERPELLATION -> return "interpellasjon"
+                else -> throw IllegalArgumentException("Unknown value: $value")
+            }
+        }
+
+        override fun unmarshal(value: String?): QuestionType? {
+            when (value) {
+                "muntlig_sporsmal" -> return ORAL
+                "skriftlig_sporsmal" -> return WRITTEN
+                "interpellasjon" -> return INTERPELLATION
+                else -> throw IllegalArgumentException("Unknown value: $value")
+            }
+        }
+    }
 }
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "komite")
@@ -61,9 +149,9 @@ data class Area(
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Period(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "fra") var from: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "fra") @field:XmlJavaTypeAdapter(DateAdapter::class) var from: Date? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "til") var to: String? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "til") @field:XmlJavaTypeAdapter(DateAdapter::class) var to: Date? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "emne")
@@ -74,7 +162,7 @@ data class Topic(
         @field:XmlElement(namespace = STORTINGET_URI, name = "er_hovedemne") var main: Boolean? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "hovedemne_id") var mainId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var subTopic: List<Topic>? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "emne") @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "underemne_liste") var subTopic: List<Topic>? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "representant")
@@ -82,11 +170,11 @@ data class Topic(
 data class Representative(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "foedselsdato") var birth: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "doedsdato") var death: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "foedselsdato") @field:XmlJavaTypeAdapter(DateAdapter::class) var birth: Date? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "doedsdato") @field:XmlJavaTypeAdapter(DateAdapter::class) var death: Date? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fornavn") var firstName: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "etternavn") var lastName: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "kjoenn") var gender: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "kjoenn") @field:XmlJavaTypeAdapter(Gender.Adapter::class) var gender: Gender? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fylke") var area: Area? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "parti") var party: Party? = null
 ) : Node
@@ -95,9 +183,9 @@ data class Representative(
 @XmlAccessorType(XmlAccessType.FIELD)
 data class Session(
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "fra") @field:XmlJavaTypeAdapter(DateAdapter::class) var from: Date? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "fra") var from: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "til") var to: String? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "til") @field:XmlJavaTypeAdapter(DateAdapter::class) var to: Date? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sporsmal")
@@ -112,22 +200,22 @@ data class Question(
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_pa_vegne_av") var answeredFor: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_pa_vegne_av_minister_id") var answeredForMinisterId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "besvart_pa_vegne_av_minister_tittel") var answeredForMinisterTitle: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "datert_dato") var dated: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "emne") var topic: List<Topic>? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "datert_dato") @field:XmlJavaTypeAdapter(DateAdapter::class) var dated: Date? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "emne") @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "emne_liste") var topic: List<Topic>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "flyttet_til") var movedTo: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fremsatt_av_annen") var delayedBy: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rette_vedkommende") var amendedConcerned: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rette_vedkommende_minister_id") var amendedConcernedMinisterId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rette_vedkommende_minister_tittel") var amendedConcernedMinisterTitle: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "sendt_dato") var sentDate: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "sendt_dato") @field:XmlJavaTypeAdapter(DateAdapter::class) var sentDate: Date? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporsmal_fra") var questionBy: Representative? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporsmal_nummer") var questionNumber: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporsmal_til") var questionTo: Representative? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporsmal_til_minister_id") var questionToMinisterId: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "sporsmal_til_minister_tittel") var questionToMinisterTitle: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "status") var status: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "status") @field:XmlJavaTypeAdapter(QuestionState.Adapter::class) var status: QuestionState? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "tittel") var title: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "type") var type: String? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "type") @field:XmlJavaTypeAdapter(QuestionType.Adapter::class) var type: QuestionType? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sak")
@@ -214,8 +302,8 @@ data class ItemProcedure(
 data class ItemProcedureStep(
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "navn") var name: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "steg_nummer") var number: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "uaktuell") var current: String? = null
+        @field:XmlElement(namespace = STORTINGET_URI, name = "steg_nummer") var number: Int? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "uaktuell") var current: Boolean? = null
 ) : Node
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "sak_votering")
