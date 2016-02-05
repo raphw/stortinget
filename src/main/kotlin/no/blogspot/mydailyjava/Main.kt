@@ -16,8 +16,8 @@ import javax.xml.bind.JAXBContext
 import javax.xml.bind.JAXBException
 import javax.xml.bind.annotation.*
 import javax.xml.bind.annotation.adapters.XmlAdapter
-import javax.xml.stream.XMLInputFactory
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter
+import javax.xml.stream.XMLInputFactory
 import javax.xml.stream.events.StartElement
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
@@ -578,7 +578,7 @@ data class HearingProgram(
         override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dato") var date: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
-        @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") var element: List<HearingProgramElement>? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "horingsprogram_element") @field:XmlElementWrapper(namespace = STORTINGET_URI, name = "horingsprogram_element_liste") var element: List<HearingProgramElement>? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "innledning") var introduction: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "merknad") var note: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "rom_id") var roomId: String? = null,
@@ -691,15 +691,21 @@ interface Consumer<in T : Node> {
                         property = value.property()
                         value = value.value()
                     }
-                    fun process(value: Any?, name: String, label: String, index: Int = -1) {
+                    val linkTarget = it.annotations.filter { it.annotationClass == LinkTo::class }.firstOrNull() as LinkTo?
+                    fun process(value: Any?, name: String, label: Class<*>, index: Int = -1) {
+                        fun createLink(id: String, label: String) {
+                            val identifier = if (index == -1) name else name + index
+                            query.append(" MERGE ($identifier:$label {id: {$identifier}}) CREATE (n)-[:${name.toCamelCase()}]->($identifier)")
+                            parameters.put(identifier, id)
+                        }
                         when (value) {
+                            linkTarget != null -> createLink(value.toString(), linkTarget!!.target.simpleName!!)
                             is Node -> {
-                                val identifier = if (index == -1) name else name + index
-                                if (value.id != null) {
-                                    query.append(" MERGE ($identifier:$label {id: {$identifier}}) CREATE (n)-[:${name.toCamelCase()}]->($identifier)")
-                                    parameters.put(identifier, value.id)
+                                val id = value.id
+                                if (id != null) {
+                                    createLink(id, label.simpleName)
                                 } else {
-                                    logger.debug("Incomplete link $name ('$identifier') for $element")
+                                    logger.debug("Incomplete link $name ('$index') for $element")
                                 }
                             }
                             is List<*> -> properties.put(name, value.toTypedArray())
@@ -708,9 +714,9 @@ interface Consumer<in T : Node> {
                     }
                     when (value) {
                         is List<*> -> value.forEachIndexed {
-                            index, value -> process(if (value is Skip) value.value() else value, property.name, value!!.javaClass.simpleName, index)
+                            index, value -> process(if (value is Skip) value.value() else value, property.name, value!!.javaClass, index)
                         }
-                        else -> process(value, property.name, property.javaField!!.type.simpleName)
+                        else -> process(value, property.name, property.javaField!!.type)
                     }
                 }
                 database.execute(query.toString(), parameters)
@@ -801,6 +807,7 @@ interface Dispatcher {
 }
 
 class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
+
     private val logger = LoggerFactory.getLogger(ThrottledXmlParser::class.java)
     private val unmarshaller = JAXBContext.newInstance(type).createUnmarshaller()
     private val tag = type.getAnnotation(XmlRootElement::class.java).name
