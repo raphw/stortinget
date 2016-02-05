@@ -6,6 +6,7 @@ import org.neo4j.kernel.DeadlockDetectedException
 import org.reflections.Reflections
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
@@ -31,6 +32,9 @@ interface Node {
     var id: String?
 }
 
+@Retention(AnnotationRetention.RUNTIME)
+annotation class AmbiguousId
+
 interface Skip {
     fun value(): Any?
     fun property(): KProperty<*>
@@ -55,13 +59,13 @@ interface Identified {
     val id: String
 }
 
-abstract class EnumXmlAdapter<T>(val type: KClass<T>) : XmlAdapter<T?, String?>() where T : Enum<T>, T: Identified {
-    override fun unmarshal(value: T?): String? {
-        return value?.id
+abstract class EnumXmlAdapter<T>(val type: KClass<T>) : XmlAdapter<String?, T?>() where T : Enum<T>, T: Identified {
+    override fun unmarshal(value: String?): T? {
+        return type.java.enumConstants.filter { it.id == value }.firstOrNull()
     }
 
-    override fun marshal(value: String?): T? {
-        return type.java.enumConstants.filter { it.id == value }.firstOrNull()
+    override fun marshal(value: T?): String? {
+        return value?.id
     }
 }
 
@@ -531,12 +535,12 @@ data class VoteResult(
 
 @XmlRootElement(namespace = STORTINGET_URI, name = "mote")
 @XmlAccessorType(XmlAccessType.FIELD)
+@AmbiguousId
 data class Meeting(
-        override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "versjon") var version: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "dagsorden_nummer") var number: Int? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "fotnote") var footnote: String? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "id") var meetingId: String? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "ikke_motedag_tekst") var noMeetingText: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "kveldsmote") var eveningMeeting: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "merknad") var note: String? = null,
@@ -663,6 +667,10 @@ interface Consumer<in T : Node> {
 
         private val logger = LoggerFactory.getLogger(GraphWriting::class.java)
 
+        private companion object {
+            private val random = Random()
+        }
+
         init {
             val transaction = database.beginTx()
             try {
@@ -712,7 +720,7 @@ interface Consumer<in T : Node> {
             transactionalWrite(element, {
                 val query = StringBuilder("MERGE (n:${element.javaClass.simpleName} {id: {id}}) SET n += {properties}")
                 val parameters = HashMap<String, Any?>()
-                parameters.put("id", element.id)
+                parameters.put("id", if (element.javaClass.isAnnotationPresent(AmbiguousId::class.java)) "random" + random.nextInt() else element.id)
                 val properties = HashMap<String, Any?>()
                 parameters.put("properties", properties)
                 element.javaClass.kotlin.declaredMemberProperties.filter { it.name != "id" }.forEach {
@@ -728,6 +736,12 @@ interface Consumer<in T : Node> {
                             val identifier = if (index == -1) name else name + index
                             query.append(" MERGE ($identifier:$label {id: {$identifier}}) CREATE (n)-[:${name.toCamelCase()}]->($identifier)")
                             parameters.put(identifier, id)
+                        }
+                        fun Any?.toStorageFormat() : Any? {
+                            return when (this) {
+                                is Date -> this.time
+                                else -> this
+                            }
                         }
                         when (value) {
                             linkTarget != null -> {
@@ -747,8 +761,8 @@ interface Consumer<in T : Node> {
                                     logger.debug("Incomplete link {} ('{}') for {}", name, index, element)
                                 }
                             }
-                            is List<*> -> properties.put(name, value.toTypedArray())
-                            else -> properties.put(name, value)
+                            is List<*> -> properties.put(name, value.map { it.toStorageFormat() }.toTypedArray())
+                            else -> properties.put(name, value.toStorageFormat())
                         }
                     }
                     when (value) {
@@ -859,21 +873,33 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
 
     fun doRead(consumers: Array<out Consumer<T>>, maxAttempts: Int = 15) {
         var attempt = 0
+        var depth = 0
         while (attempt++ < maxAttempts) {
             try {
-                val stream = URL(EXPORT_URI + endpoint).openStream()
+                val connection = URL(EXPORT_URI + endpoint).openConnection() as HttpURLConnection
+                connection.setRequestMethod("GET");
+                connection.connect();
+                val stream = connection.inputStream
+                if (connection.responseCode != 200) {
+                    logger.error("Cannot read {}{}", EXPORT_URI, endpoint)
+                    stream.close()
+                    continue
+                }
                 try {
                     val reader = XMLInputFactory.newFactory().createXMLEventReader(stream)
                     try {
                         while (reader.hasNext()) {
                             val event = reader.peek()
                             if (event != null && event.isStartElement && (event as StartElement).name.localPart == tag) {
+                                if (depth++ > 10) {
+                                    return
+                                }
                                 try {
                                     @Suppress("UNCHECKED_CAST")
                                     val element = unmarshaller.unmarshal(reader) as T
                                     consumers.forEach { it.onElement(element) }
                                 } catch(exception: JAXBException) {
-                                    logger.error("Unexpected data read from {}", endpoint)
+                                    logger.error("Unexpected data read from {}", endpoint, exception)
                                 }
                             } else {
                                 reader.next()
@@ -931,8 +957,6 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer.Linkable<N
                         }
                     })
             ThrottledXmlParser("moter?sesjonid=${element.id}", Meeting::class.java).read(dispatcher,
-                    Consumer.IdSetting(element, Meeting::time, Meeting::number),
-                    defaultConsumer.linkTo(element, "held"),
                     object : Consumer<Meeting> {
                         override fun onElement(element: Meeting) {
                             if (element.id != "-1") {
@@ -941,7 +965,9 @@ private fun readAll(dispatcher: Dispatcher, defaultConsumer: Consumer.Linkable<N
                                         defaultConsumer.linkTo(element, "partOf"))
                             }
                         }
-                    })
+                    },
+                    Consumer.IdSetting(element, Meeting::time, Meeting::number), // TODO: This cannot be right!
+                    defaultConsumer.linkTo(element, "held"))
             ThrottledXmlParser("saker?sesjonid=${element.id}", ItemSummary::class.java).read(dispatcher,
                     defaultConsumer.linkTo(element, "discussed"),
                     object : Consumer<ItemSummary> {
