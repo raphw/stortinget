@@ -575,7 +575,7 @@ data class Hearing(
         @field:XmlElement(namespace = STORTINGET_URI, name = "id") override var id: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "komite") var committee: Committee? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "publisert_dato") @XmlJavaTypeAdapter(DateAdapter::class) var publication: Date? = null,
-        @field:XmlElement(namespace = STORTINGET_URI, name = "status") @XmlJavaTypeAdapter(HearingType.Adapter::class) var status: HearingStatus? = null,
+        @field:XmlElement(namespace = STORTINGET_URI, name = "status") @XmlJavaTypeAdapter(HearingStatus.Adapter::class) var status: HearingStatus? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "status_info_tekst") var statusInfo: String? = null,
         @field:XmlElement(namespace = STORTINGET_URI, name = "type") @XmlJavaTypeAdapter(HearingType.Adapter::class) var type: HearingType? = null
 ) : Node
@@ -647,7 +647,7 @@ interface Consumer<in T : Node> {
             //logger.info(element.toString())
             element.javaClass.kotlin.declaredMemberProperties.forEach {
                 if (it.getter.call(element) == null) {
-                    logger.debug("Missing value ${it.name} for $element")
+                    logger.debug("Missing value {} for {}", it.name, element)
                 }
             }
         }
@@ -669,7 +669,7 @@ interface Consumer<in T : Node> {
                 Reflections(Node::class.java.`package`.name)
                         .getSubTypesOf(Node::class.java)
                         .forEach {
-                            logger.info("Creating index for ${it.simpleName}")
+                            logger.info("Creating index for {}", it.simpleName)
                             database.schema().indexFor(DynamicLabel.label(it.simpleName)).on("id").create()
                         }
             } catch(exception: Exception) {
@@ -684,26 +684,28 @@ interface Consumer<in T : Node> {
             return this.replace("([a-z])([A-Z]+)", "$1_$2").toUpperCase(Locale.US)
         }
 
-        private fun transactionalWrite(element: Any, doWrite: () -> Unit, maxAttempts: Int = 20): Unit {
+        private fun transactionalWrite(element: Node, doWrite: () -> Unit, maxAttempts: Int = 20): Unit {
             var attempt = 0
             while (attempt++ < maxAttempts) {
                 val transaction = database.beginTx()
                 try {
+                    logger.debug("Writing to database: {} ({})", element.javaClass.simpleName, element.id)
                     doWrite()
                     transaction.success()
                     return
                 } catch (exception: DeadlockDetectedException) {
                     transaction.failure()
-                    logger.debug("Dead lock on inserting $element", exception)
+                    logger.debug("Dead lock on inserting {}", element, exception)
                 } catch (exception: Exception) {
                     transaction.failure()
-                    logger.error("Could not insert $element", exception)
+                    logger.error("Could not insert {}", element, exception)
                     return
                 } finally {
+                    logger.debug("Done writing to database: {} ({})", element.javaClass.simpleName, element.id)
                     transaction.close()
                 }
             }
-            logger.error("Too many deadlocks during insert of $element ($maxAttempts)")
+            logger.error("Too many deadlocks during insert of {} ({})", element.id, maxAttempts)
         }
 
         override fun onElement(element: Node) {
@@ -742,7 +744,7 @@ interface Consumer<in T : Node> {
                                 if (id != null) {
                                     createLink(id, label.simpleName)
                                 } else {
-                                    logger.debug("Incomplete link $name ('$index') for $element")
+                                    logger.debug("Incomplete link {} ('{}') for {}", name, index, element)
                                 }
                             }
                             is List<*> -> properties.put(name, value.toTypedArray())
@@ -851,7 +853,7 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
     private val tag = type.getAnnotation(XmlRootElement::class.java).name
 
     fun read(dispatcher: Dispatcher, vararg consumers: Consumer<T>) {
-        logger.info("Parsing $EXPORT_URI$endpoint")
+        logger.info("Parsing {}{}", EXPORT_URI, endpoint)
         dispatcher.apply(this, consumers)
     }
 
@@ -871,7 +873,7 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
                                     val element = unmarshaller.unmarshal(reader) as T
                                     consumers.forEach { it.onElement(element) }
                                 } catch(exception: JAXBException) {
-                                    logger.error("Unexpected data read from $endpoint")
+                                    logger.error("Unexpected data read from {}", endpoint)
                                 }
                             } else {
                                 reader.next()
@@ -885,7 +887,7 @@ class ThrottledXmlParser<T : Node>(val endpoint: String, type: Class<out T>) {
                 }
                 return
             } catch(exception: Exception) {
-                logger.debug("Error reading file from $endpoint", exception)
+                logger.debug("Error reading file from {}", endpoint, exception)
             }
         }
     }
